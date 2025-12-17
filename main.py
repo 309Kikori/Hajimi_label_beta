@@ -13,6 +13,16 @@ from ui import ActivityBar, SideBar, EditorArea, StatsView
 from overview import OverviewPage
 from localization import tr
 
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
 class SettingsDialog(QDialog):
     def __init__(self, parent=None, config=None):
         super().__init__(parent)
@@ -234,10 +244,13 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(tr("app_title"))
 
     def load_stylesheet(self):
-        style_file = QFile("assets/style.qss")
+        style_path = resource_path("assets/style.qss")
+        style_file = QFile(style_path)
         if style_file.open(QFile.ReadOnly | QFile.Text):
             stream = QTextStream(style_file)
             self.setStyleSheet(stream.readAll())
+        else:
+            print(f"Warning: Could not load stylesheet from {style_path}")
 
     def switch_page(self, page_name):
         if page_name == "Review":
