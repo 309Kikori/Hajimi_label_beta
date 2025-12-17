@@ -21,9 +21,11 @@ class ActivityBar(QFrame):
 
         # Using Unicode characters as icons
         self.btn_review = self.create_button("Review", "👁️") # Eye or Picture
+        self.btn_overview = self.create_button("Overview", "🗺️") # Map
         self.btn_stats = self.create_button("Statistics", "📊") # Chart
         
         self.layout.addWidget(self.btn_review)
+        self.layout.addWidget(self.btn_overview)
         self.layout.addWidget(self.btn_stats)
         self.layout.addStretch()
         
@@ -32,6 +34,9 @@ class ActivityBar(QFrame):
         self.layout.addWidget(self.btn_settings)
 
         self.btn_review.setChecked(True)
+        
+        # Default visibility
+        self.btn_overview.setVisible(True)
 
     def create_button(self, name, text):
         btn = QPushButton(text)
@@ -44,7 +49,10 @@ class ActivityBar(QFrame):
 
     def on_click(self, name, btn):
         self.btn_review.setChecked(False)
+        self.btn_overview.setChecked(False)
         self.btn_stats.setChecked(False)
+        self.btn_settings.setChecked(False)
+        
         btn.setChecked(True)
         self.pageChanged.emit(name)
 

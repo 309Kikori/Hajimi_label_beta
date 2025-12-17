@@ -32,7 +32,11 @@ class Translator:
                 "welcome_title": "Visual Studio Code",
                 "welcome_subtitle": "Editing evolved",
                 "start": "Start",
-                "recent": "Recent"
+                "recent": "Recent",
+                "overview": "Overview",
+                "overview_title": "Image Overview",
+                "auto_arrange": "Auto Arrange",
+                "enable_overview": "Enable Overview Page"
             },
             "zh_CN": {
                 "app_title": "hajimi标注验收工具 - ",
@@ -62,7 +66,11 @@ class Translator:
                 "welcome_title": "Visual Studio Code",
                 "welcome_subtitle": "代码编辑，重新定义",
                 "start": "开始",
-                "recent": "最近"
+                "recent": "最近",
+                "overview": "总览",
+                "overview_title": "图片总览看板",
+                "auto_arrange": "自动排布",
+                "enable_overview": "启用总览页面"
             }
         }
 

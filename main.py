@@ -1,18 +1,44 @@
 import sys
 import os
 import json
-from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QStackedWidget, QStatusBar, QLabel, QSplitter, QMenuBar, QMenu
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QHBoxLayout, QStackedWidget, 
+    QStatusBar, QLabel, QSplitter, QMenuBar, QMenu, QCheckBox, QDialog, QVBoxLayout
+)
 from PySide6.QtCore import QFile, QTextStream, Qt
 from PySide6.QtGui import QAction
 
 from ui import ActivityBar, SideBar, EditorArea, StatsView
+from overview import OverviewPage
 from localization import tr
+
+class SettingsDialog(QDialog):
+    def __init__(self, parent=None, config=None):
+        super().__init__(parent)
+        self.setWindowTitle(tr("settings"))
+        self.resize(400, 300)
+        self.config = config
+        
+        self.layout = QVBoxLayout(self)
+        
+        self.cb_overview = QCheckBox(tr("enable_overview"))
+        self.cb_overview.setChecked(self.config.get("enable_overview", True))
+        self.layout.addWidget(self.cb_overview)
+        
+        self.layout.addStretch()
+
+    def closeEvent(self, event):
+        self.config["enable_overview"] = self.cb_overview.isChecked()
+        super().closeEvent(event)
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(tr("app_title"))
         self.resize(1200, 800)
+        
+        # Config
+        self.config = {"enable_overview": True}
 
         # Central Widget
         self.central_widget = QWidget()
@@ -32,9 +58,11 @@ class MainWindow(QMainWindow):
         self.content_stack = QStackedWidget()
         
         self.editor_area = EditorArea()
+        self.overview_page = OverviewPage()
         self.stats_view = StatsView()
         
         self.content_stack.addWidget(self.editor_area)
+        self.content_stack.addWidget(self.overview_page)
         self.content_stack.addWidget(self.stats_view)
 
         # Splitter for SideBar and Content
@@ -72,6 +100,7 @@ class MainWindow(QMainWindow):
 
         # Load Style
         self.load_stylesheet()
+        self.apply_config()
 
     def setup_menu(self):
         menubar = self.menuBar()
@@ -100,6 +129,7 @@ class MainWindow(QMainWindow):
         self.side_bar.show_no_folder()
         self.editor_area.viewer.scene.clear()
         self.editor_area.tab_label.setText(tr("no_file_selected"))
+        self.overview_page.canvas.scene.clear()
         self.status_label.setText(tr("ready"))
         self.setWindowTitle(tr("app_title"))
 
@@ -113,10 +143,26 @@ class MainWindow(QMainWindow):
         if page_name == "Review":
             self.content_stack.setCurrentWidget(self.editor_area)
             self.side_bar.setVisible(True)
+        elif page_name == "Overview":
+            self.content_stack.setCurrentWidget(self.overview_page)
+            self.side_bar.setVisible(False) # Overview usually needs more space
         elif page_name == "Statistics":
             self.update_stats()
             self.content_stack.setCurrentWidget(self.stats_view)
             self.side_bar.setVisible(False)
+        elif page_name == "Settings":
+            self.open_settings()
+
+    def open_settings(self):
+        dlg = SettingsDialog(self, self.config)
+        dlg.exec()
+        self.apply_config()
+        # Reset to previous view or stay? Let's go back to Review for now
+        self.activity_bar.btn_review.click()
+
+    def apply_config(self):
+        enabled = self.config.get("enable_overview", True)
+        self.activity_bar.btn_overview.setVisible(enabled)
 
     def load_folder(self, folder_path):
         self.current_folder = folder_path
@@ -124,6 +170,10 @@ class MainWindow(QMainWindow):
         self.side_bar.set_files(self.files)
         self.load_results()
         self.status_label.setText(tr("loaded_images", len(self.files), folder_path))
+        
+        # Load Overview
+        if self.config.get("enable_overview", True):
+            self.overview_page.load_images(folder_path, self.files)
 
     def load_results(self):
         result_path = os.path.join(self.current_folder, "review_results.json")
