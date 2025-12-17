@@ -1,0 +1,106 @@
+/* Global */
+QWidget {
+    background-color: #1e1e1e;
+    color: #cccccc;
+    font-family: "Segoe UI", sans-serif;
+    font-size: 13px;
+}
+
+/* Activity Bar */
+QFrame#ActivityBar {
+    background-color: #333333;
+    min-width: 48px;
+    max-width: 48px;
+    border: none;
+}
+
+QPushButton#ActivityButton {
+    background-color: transparent;
+    border: none;
+    border-left: 2px solid transparent;
+    padding: 10px;
+    color: #858585;
+}
+
+QPushButton#ActivityButton:checked {
+    color: #ffffff;
+    border-left: 2px solid #ffffff;
+}
+
+QPushButton#ActivityButton:hover {
+    color: #ffffff;
+}
+
+/* Side Bar */
+QFrame#SideBar {
+    background-color: #252526;
+    min-width: 200px;
+    border-right: 1px solid #444444;
+}
+
+QLabel#SideBarTitle {
+    font-size: 11px;
+    font-weight: bold;
+    padding: 10px;
+    color: #bbbbbb;
+}
+
+QListWidget {
+    background-color: #252526;
+    border: none;
+    outline: none;
+}
+
+QListWidget::item {
+    padding: 5px;
+    color: #cccccc;
+}
+
+QListWidget::item:selected {
+    background-color: #37373d;
+    color: #ffffff;
+}
+
+QListWidget::item:hover {
+    background-color: #2a2d2e;
+}
+
+/* Editor Area */
+QFrame#EditorArea {
+    background-color: #1e1e1e;
+}
+
+/* Status Bar */
+QStatusBar {
+    background-color: #007acc;
+    color: #ffffff;
+}
+
+QStatusBar::item {
+    border: none;
+}
+
+/* Buttons */
+QPushButton#ActionButton {
+    background-color: #0e639c;
+    color: #ffffff;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 2px;
+}
+
+QPushButton#ActionButton:hover {
+    background-color: #1177bb;
+}
+
+QPushButton#FailButton {
+    background-color: #a10000;
+    color: #ffffff;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 2px;
+}
+
+QPushButton#FailButton:hover {
+    background-color: #bd0000;
+}
