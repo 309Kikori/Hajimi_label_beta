@@ -9,9 +9,13 @@ import SwiftUI
 
 @main
 struct Hajimi_LabelApp: App {
+    @StateObject var appModel = AppModel()
+    @StateObject var settings = SettingsModel()
+    
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(appModel: appModel, settings: settings)
         }
+        .windowStyle(.hiddenTitleBar)
     }
 }
