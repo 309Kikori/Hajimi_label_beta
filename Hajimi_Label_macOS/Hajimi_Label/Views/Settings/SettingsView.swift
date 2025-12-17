@@ -5,24 +5,24 @@ struct SettingsView: View {
     
     var body: some View {
         Form {
-            Section(header: Text("Appearance")) {
-                TextField("Grid Size", value: $settings.gridSize, formatter: NumberFormatter())
+            Section(header: Text(NSLocalizedString("appearance", comment: "Settings section header for appearance"))) {
+                TextField(NSLocalizedString("grid_size", comment: "Grid size setting label"), value: $settings.gridSize, formatter: NumberFormatter())
                 
-                ColorPicker("Grid Color", selection: Binding(
+                ColorPicker(NSLocalizedString("grid_color", comment: "Grid color setting label"), selection: Binding(
                     get: { settings.gridColor },
                     set: { settings.gridColorHex = $0.toHex() ?? "#333333" }
                 ))
                 
-                ColorPicker("Background Color", selection: Binding(
+                ColorPicker(NSLocalizedString("bg_color", comment: "Background color setting label"), selection: Binding(
                     get: { settings.bgColor },
                     set: { settings.bgColorHex = $0.toHex() ?? "#1e1e1e" }
                 ))
                 
-                TextField("Max Image Width", value: $settings.maxImageWidth, formatter: NumberFormatter())
+                TextField(NSLocalizedString("max_image_width", comment: "Max image width setting label"), value: $settings.maxImageWidth, formatter: NumberFormatter())
             }
             
-            Section(header: Text("Behavior")) {
-                Toggle("Enable Overview", isOn: $settings.enableOverview)
+            Section(header: Text(NSLocalizedString("behavior", comment: "Settings section header for behavior"))) {
+                Toggle(NSLocalizedString("enable_overview", comment: "Enable overview toggle label"), isOn: $settings.enableOverview)
             }
         }
         .padding()

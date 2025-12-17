@@ -4,14 +4,19 @@ struct EditorView: View {
     @ObservedObject var appModel: AppModel
     @ObservedObject var settings: SettingsModel
     
+    @State private var scale: CGFloat = 1.0
+    @State private var offset: CGSize = .zero
+    @State private var lastOffset: CGSize = .zero
+    
     var body: some View {
         VStack(spacing: 0) {
             // Tab Bar / Title
             HStack {
                 Image(systemName: "photo")
-                    .foregroundColor(.blue)
-                Text(appModel.selectedFile?.lastPathComponent ?? "No File Selected")
+                    .foregroundColor(Color(hex: "007acc"))
+                Text(appModel.selectedFile?.lastPathComponent ?? NSLocalizedString("no_file_selected", comment: ""))
                     .font(.system(size: 12))
+                    .foregroundColor(.primary)
                 Spacer()
             }
             .padding(.horizontal, 10)
@@ -21,22 +26,48 @@ struct EditorView: View {
             GeometryReader { geometry in
                 if let selectedFile = appModel.selectedFile,
                    let image = NSImage(contentsOf: selectedFile) {
-                    VStack(spacing: 0) {
-                        ScrollView([.horizontal, .vertical]) {
-                            Image(nsImage: image)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(maxWidth: settings.maxImageWidth > 0 ? CGFloat(settings.maxImageWidth) : nil)
-                                .frame(minWidth: geometry.size.width, minHeight: geometry.size.height)
-                        }
-                        .background(settings.bgColor)
+                    ZStack {
+                        // Checkerboard Background
+                        CheckerboardView()
+                            .opacity(0.5)
                         
-                        // Action Bar
+                        Image(nsImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .scaleEffect(scale)
+                            .offset(offset)
+                            .background(
+                                ScrollWheelHandler { zoomFactor in
+                                    let newScale = scale * zoomFactor
+                                    scale = max(0.1, min(newScale, 10.0))
+                                }
+                            )
+                            .gesture(
+                                MagnificationGesture()
+                                    .onChanged { value in
+                                        scale = value
+                                    }
+                            )
+                            .simultaneousGesture(
+                                DragGesture()
+                                    .onChanged { value in
+                                        self.offset = CGSize(width: self.lastOffset.width + value.translation.width, height: self.lastOffset.height + value.translation.height)
+                                    }
+                                    .onEnded { _ in
+                                        self.lastOffset = self.offset
+                                    }
+                            )
+                            .frame(width: geometry.size.width, height: geometry.size.height)
+                            .clipped()
+                    }
+                    .background(settings.bgColor)
+                    .overlay(
+                        // Action Bar (Floating at bottom)
                         HStack(spacing: 20) {
                             Spacer()
                             
                             Button(action: { appModel.labelCurrentFile(status: "fail") }) {
-                                Text("Fail (F)")
+                                Text("\(NSLocalizedString("fail", comment: "")) (F)")
                                     .padding(.horizontal, 20)
                                     .padding(.vertical, 8)
                                     .background(Color(hex: "a10000"))
@@ -47,7 +78,7 @@ struct EditorView: View {
                             .keyboardShortcut("f", modifiers: [])
                             
                             Button(action: { appModel.labelCurrentFile(status: "invalid") }) {
-                                Text("Invalid (I)")
+                                Text("\(NSLocalizedString("invalid", comment: "")) (I)")
                                     .padding(.horizontal, 20)
                                     .padding(.vertical, 8)
                                     .background(Color(hex: "8e8e8e"))
@@ -58,7 +89,7 @@ struct EditorView: View {
                             .keyboardShortcut("i", modifiers: [])
                             
                             Button(action: { appModel.labelCurrentFile(status: "pass") }) {
-                                Text("Pass (P)")
+                                Text("\(NSLocalizedString("pass", comment: "")) (P)")
                                     .padding(.horizontal, 20)
                                     .padding(.vertical, 8)
                                     .background(Color(hex: "0e639c"))
@@ -71,18 +102,17 @@ struct EditorView: View {
                             Spacer()
                         }
                         .padding()
-                        .background(Color(nsColor: .windowBackgroundColor))
-                    }
+                        .background(Color(nsColor: .windowBackgroundColor).opacity(0.9))
+                        , alignment: .bottom
+                    )
                 } else {
                     VStack {
                         Spacer()
                         Image(systemName: "photo.on.rectangle")
                             .font(.system(size: 50))
                             .foregroundColor(.secondary)
-                        Text("No Image Selected")
-                            .font(.title)
+                        Text("no_file_selected")
                             .foregroundColor(.secondary)
-                            .padding(.top)
                         Spacer()
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -90,5 +120,32 @@ struct EditorView: View {
                 }
             }
         }
+    }
+}
+
+struct CheckerboardView: View {
+    var body: some View {
+        GeometryReader { geometry in
+            Path { path in
+                let size: CGFloat = 20
+                let rows = Int(geometry.size.height / size) + 1
+                let cols = Int(geometry.size.width / size) + 1
+                
+                for row in 0..<rows {
+                    for col in 0..<cols {
+                        if (row + col) % 2 == 0 {
+                            path.addRect(CGRect(x: CGFloat(col) * size, y: CGFloat(row) * size, width: size, height: size))
+                        }
+                    }
+                }
+            }
+            .fill(Color.gray.opacity(0.2))
+        }
+    }
+}
+
+struct EditorView_Previews: PreviewProvider {
+    static var previews: some View {
+        EditorView(appModel: AppModel(), settings: SettingsModel())
     }
 }

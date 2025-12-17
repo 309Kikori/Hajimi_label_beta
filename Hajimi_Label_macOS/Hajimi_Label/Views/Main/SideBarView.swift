@@ -5,45 +5,80 @@ struct SideBarView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Title Area
+            // Title
             HStack {
-                Text("EXPLORER")
-                    .font(.system(size: 11, weight: .bold))
+                Text("explorer")
+                    .font(.system(size: 11))
                     .foregroundColor(.secondary)
                 Spacer()
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
-            .background(Color(nsColor: .controlBackgroundColor))
             
-            if appModel.currentFolder == nil {
-                // No Folder State
-                VStack {
-                    Spacer()
-                    Text("No Folder Opened")
-                        .foregroundColor(.secondary)
-                    Button("Open Folder") {
-                        appModel.openFolder()
-                    }
-                    .controlSize(.large)
-                    .padding(.top, 10)
+            if let folder = appModel.currentFolder {
+                // Folder Header
+                HStack {
+                    Text("📂 \(folder.lastPathComponent)")
+                        .font(.headline)
+                        .foregroundColor(.primary)
                     Spacer()
                 }
-                .frame(maxWidth: .infinity)
-            } else {
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Color(nsColor: .controlBackgroundColor))
+                
                 // File List
                 List(appModel.files, id: \.self, selection: $appModel.selectedFile) { file in
                     HStack {
-                        Image(systemName: "photo")
-                            .foregroundColor(.blue)
+                        StatusIcon(status: appModel.results[file.lastPathComponent] ?? "unreviewed")
                         Text(file.lastPathComponent)
-                            .lineLimit(1)
+                            .font(.system(size: 13))
                     }
                     .tag(file)
                 }
-                .listStyle(.sidebar)
+                .listStyle(SidebarListStyle())
+            } else {
+                // No Folder State
+                VStack(spacing: 20) {
+                    Spacer()
+                    Text("no_folder")
+                        .foregroundColor(.secondary)
+                    Button("open_folder") {
+                        appModel.openFolder()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    Spacer()
+                }
+                .padding()
             }
         }
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+}
+
+struct StatusIcon: View {
+    let status: String
+    
+    var body: some View {
+        switch status {
+        case "pass":
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundColor(.green)
+        case "fail":
+            Image(systemName: "xmark.circle.fill")
+                .foregroundColor(.red)
+        case "invalid":
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(.yellow)
+        default:
+            Image(systemName: "circle")
+                .foregroundColor(.secondary)
+        }
+    }
+}
+
+struct SideBarView_Previews: PreviewProvider {
+    static var previews: some View {
+        SideBarView(appModel: AppModel())
     }
 }

@@ -35,6 +35,7 @@ class AppModel: ObservableObject {
             if let url = panel.url {
                 self.currentFolder = url
                 loadFiles(from: url)
+                ensureResultsFileExists()
                 loadResults()
             }
         }
@@ -92,6 +93,23 @@ class AppModel: ObservableObject {
         // Auto-advance to next file
         if let index = files.firstIndex(of: file), index + 1 < files.count {
             selectedFile = files[index + 1]
+        }
+    }
+    
+    func ensureResultsFileExists() {
+        guard let folder = currentFolder else { return }
+        let resultsURL = folder.appendingPathComponent("review_results.json")
+
+        // Always try to create if not exists, even if we just loaded
+        if !FileManager.default.fileExists(atPath: resultsURL.path) {
+            do {
+                let emptyResults: [String: String] = [:]
+                let data = try JSONSerialization.data(withJSONObject: emptyResults, options: .prettyPrinted)
+                try data.write(to: resultsURL)
+                print("Created empty review_results.json at \(resultsURL.path)")
+            } catch {
+                print("Error creating review_results.json: \(error)")
+            }
         }
     }
 }
