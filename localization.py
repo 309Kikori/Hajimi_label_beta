@@ -36,7 +36,16 @@ class Translator:
                 "overview": "Overview",
                 "overview_title": "Image Overview",
                 "auto_arrange": "Auto Arrange",
-                "enable_overview": "Enable Overview Page"
+                "enable_overview": "Enable Overview Page",
+                "invalid": "Invalid",
+                "grid_size": "Grid Size",
+                "grid_color": "Grid Color",
+                "bg_color": "Background Color",
+                "max_image_width": "Max Image Width (px)",
+                "settings_title": "Settings",
+                "appearance": "Appearance",
+                "behavior": "Behavior",
+                "stats_status": "Total: {} | Pass: {} | Fail: {} | Invalid: {} | Unreviewed: {}"
             },
             "zh_CN": {
                 "app_title": "hajimi标注验收工具 - ",
@@ -70,7 +79,16 @@ class Translator:
                 "overview": "总览",
                 "overview_title": "图片总览看板",
                 "auto_arrange": "自动排布",
-                "enable_overview": "启用总览页面"
+                "enable_overview": "启用总览页面",
+                "invalid": "无效数据",
+                "grid_size": "网格间距",
+                "grid_color": "网格颜色",
+                "bg_color": "背景颜色",
+                "max_image_width": "图片最大宽度 (px)",
+                "settings_title": "设置",
+                "appearance": "外观",
+                "behavior": "行为",
+                "stats_status": "总计: {} | 通过: {} | 不通过: {} | 无效: {} | 未验收: {}"
             }
         }
 

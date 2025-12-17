@@ -3,7 +3,8 @@ import os
 import json
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QHBoxLayout, QStackedWidget, 
-    QStatusBar, QLabel, QSplitter, QMenuBar, QMenu, QCheckBox, QDialog, QVBoxLayout
+    QStatusBar, QLabel, QSplitter, QMenuBar, QMenu, QCheckBox, QDialog, QVBoxLayout,
+    QLineEdit, QFormLayout, QScrollArea
 )
 from PySide6.QtCore import QFile, QTextStream, Qt
 from PySide6.QtGui import QAction
@@ -15,20 +16,108 @@ from localization import tr
 class SettingsDialog(QDialog):
     def __init__(self, parent=None, config=None):
         super().__init__(parent)
-        self.setWindowTitle(tr("settings"))
-        self.resize(400, 300)
+        self.setWindowTitle(tr("settings_title"))
+        self.resize(600, 400)
         self.config = config
         
+        # VS Code Style Layout
         self.layout = QVBoxLayout(self)
+        self.layout.setContentsMargins(0,0,0,0)
         
-        self.cb_overview = QCheckBox(tr("enable_overview"))
+        # Search Bar (Visual only for now)
+        self.search_bar = QLineEdit()
+        self.search_bar.setPlaceholderText("Search settings...")
+        self.search_bar.setStyleSheet("""
+            QLineEdit {
+                background-color: #3c3c3c;
+                color: #cccccc;
+                border: 1px solid #3c3c3c;
+                padding: 5px;
+                margin: 10px;
+            }
+            QLineEdit:focus {
+                border: 1px solid #007acc;
+            }
+        """)
+        self.layout.addWidget(self.search_bar)
+        
+        # Scroll Area
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setStyleSheet("QScrollArea { border: none; background-color: #1e1e1e; }")
+        self.content = QWidget()
+        self.content.setStyleSheet("background-color: #1e1e1e;")
+        self.form_layout = QFormLayout(self.content)
+        self.form_layout.setLabelAlignment(Qt.AlignLeft)
+        self.form_layout.setFormAlignment(Qt.AlignLeft | Qt.AlignTop)
+        self.form_layout.setSpacing(15)
+        self.form_layout.setContentsMargins(20, 10, 20, 10)
+        
+        # --- Settings Items ---
+        
+        # Section: Appearance
+        self.add_section_header(tr("appearance"))
+        
+        self.inp_grid_size = QLineEdit(str(self.config.get("grid_size", 40)))
+        self.add_setting_row(tr("grid_size"), self.inp_grid_size)
+        
+        self.inp_grid_color = QLineEdit(self.config.get("grid_color", "#333333"))
+        self.add_setting_row(tr("grid_color"), self.inp_grid_color)
+        
+        self.inp_bg_color = QLineEdit(self.config.get("bg_color", "#1e1e1e"))
+        self.add_setting_row(tr("bg_color"), self.inp_bg_color)
+
+        self.inp_max_width = QLineEdit(str(self.config.get("max_image_width", 1600)))
+        self.add_setting_row(tr("max_image_width"), self.inp_max_width)
+
+        # Section: Behavior
+        self.add_section_header(tr("behavior"))
+        
+        self.cb_overview = QCheckBox()
         self.cb_overview.setChecked(self.config.get("enable_overview", True))
-        self.layout.addWidget(self.cb_overview)
+        self.add_setting_row(tr("enable_overview"), self.cb_overview)
         
-        self.layout.addStretch()
+        self.scroll.setWidget(self.content)
+        self.layout.addWidget(self.scroll)
+
+    def add_section_header(self, text):
+        label = QLabel(text)
+        label.setStyleSheet("font-weight: bold; font-size: 14px; color: #ffffff; margin-top: 10px; margin-bottom: 5px;")
+        self.form_layout.addRow(label)
+
+    def add_setting_row(self, label_text, widget):
+        label = QLabel(label_text)
+        label.setStyleSheet("color: #cccccc;")
+        
+        if isinstance(widget, QLineEdit):
+            widget.setStyleSheet("""
+                QLineEdit {
+                    background-color: #3c3c3c;
+                    color: #cccccc;
+                    border: 1px solid #3c3c3c;
+                    padding: 4px;
+                }
+                QLineEdit:focus {
+                    border: 1px solid #007acc;
+                }
+            """)
+        
+        self.form_layout.addRow(label, widget)
 
     def closeEvent(self, event):
+        # Save config
         self.config["enable_overview"] = self.cb_overview.isChecked()
+        try:
+            self.config["grid_size"] = int(self.inp_grid_size.text())
+        except:
+            pass
+        try:
+            self.config["max_image_width"] = int(self.inp_max_width.text())
+        except:
+            pass
+        self.config["grid_color"] = self.inp_grid_color.text()
+        self.config["bg_color"] = self.inp_bg_color.text()
+        
         super().closeEvent(event)
 
 class MainWindow(QMainWindow):
@@ -37,8 +126,14 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(tr("app_title"))
         self.resize(1200, 800)
         
-        # Config
-        self.config = {"enable_overview": True}
+        # Config Defaults
+        self.config = {
+            "enable_overview": True,
+            "grid_size": 40,
+            "grid_color": "#333333",
+            "bg_color": "#1e1e1e",
+            "max_image_width": 1600
+        }
 
         # Central Widget
         self.central_widget = QWidget()
@@ -58,7 +153,7 @@ class MainWindow(QMainWindow):
         self.content_stack = QStackedWidget()
         
         self.editor_area = EditorArea()
-        self.overview_page = OverviewPage()
+        self.overview_page = OverviewPage(config=self.config)
         self.stats_view = StatsView()
         
         self.content_stack.addWidget(self.editor_area)
@@ -82,6 +177,10 @@ class MainWindow(QMainWindow):
         self.status_label = QLabel(tr("ready"))
         self.status_label.setObjectName("StatusLabel")
         self.status_bar.addWidget(self.status_label)
+        
+        self.stats_status_label = QLabel("")
+        self.stats_status_label.setObjectName("StatusLabel")
+        self.status_bar.addPermanentWidget(self.stats_status_label)
         
         # Initial Status Style
         self.status_bar.setStyleSheet("background-color: #007acc; color: white;")
@@ -131,6 +230,7 @@ class MainWindow(QMainWindow):
         self.editor_area.tab_label.setText(tr("no_file_selected"))
         self.overview_page.canvas.scene.clear()
         self.status_label.setText(tr("ready"))
+        self.stats_status_label.setText("")
         self.setWindowTitle(tr("app_title"))
 
     def load_stylesheet(self):
@@ -163,13 +263,18 @@ class MainWindow(QMainWindow):
     def apply_config(self):
         enabled = self.config.get("enable_overview", True)
         self.activity_bar.btn_overview.setVisible(enabled)
+        self.overview_page.update_config()
 
     def load_folder(self, folder_path):
         self.current_folder = folder_path
         self.files = [f for f in os.listdir(folder_path) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp'))]
-        self.side_bar.set_files(self.files)
         self.load_results()
+        
+        folder_name = os.path.basename(folder_path)
+        self.side_bar.set_files(self.files, self.results, folder_name)
+        
         self.status_label.setText(tr("loaded_images", len(self.files), folder_path))
+        self.update_stats_status()
         
         # Load Overview
         if self.config.get("enable_overview", True):
@@ -207,7 +312,9 @@ class MainWindow(QMainWindow):
         
         self.results[self.current_file] = decision
         self.save_results()
+        self.side_bar.update_file_status(self.current_file, decision)
         self.status_label.setText(tr("marked_as", self.current_file, tr(decision)))
+        self.update_stats_status()
         
         # Auto-advance
         current_row = self.side_bar.file_list.currentRow()
@@ -217,10 +324,28 @@ class MainWindow(QMainWindow):
             self.status_label.setText(tr("all_reviewed"))
 
     def update_stats(self):
-        total = len(self.results)
-        passed = sum(1 for v in self.results.values() if v == "pass")
-        failed = sum(1 for v in self.results.values() if v == "fail")
-        self.stats_view.update_stats(total, passed, failed)
+        current_files = set(self.files)
+        valid_results = {k: v for k, v in self.results.items() if k in current_files}
+        
+        total_files = len(self.files)
+        passed = sum(1 for v in valid_results.values() if v == "pass")
+        failed = sum(1 for v in valid_results.values() if v == "fail")
+        invalid = sum(1 for v in valid_results.values() if v == "invalid")
+        unreviewed = total_files - len(valid_results)
+        
+        self.stats_view.update_stats(total_files, passed, failed, invalid, unreviewed)
+
+    def update_stats_status(self):
+        current_files = set(self.files)
+        valid_results = {k: v for k, v in self.results.items() if k in current_files}
+        
+        total_files = len(self.files)
+        passed = sum(1 for v in valid_results.values() if v == "pass")
+        failed = sum(1 for v in valid_results.values() if v == "fail")
+        invalid = sum(1 for v in valid_results.values() if v == "invalid")
+        unreviewed = total_files - len(valid_results)
+        
+        self.stats_status_label.setText(tr("stats_status", total_files, passed, failed, invalid, unreviewed))
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

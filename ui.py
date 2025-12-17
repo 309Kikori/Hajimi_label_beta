@@ -100,8 +100,14 @@ class SideBar(QFrame):
         
         self.content_layout.addWidget(container)
 
-    def show_file_list(self):
+    def show_file_list(self, folder_name=""):
         self.clear_content()
+        
+        # Folder Name Header (VS Code Style)
+        if folder_name:
+            self.folder_header = QLabel(f"📂 {folder_name}")
+            self.folder_header.setStyleSheet("font-weight: bold; padding: 5px; color: #cccccc; background-color: #252526;")
+            self.content_layout.addWidget(self.folder_header)
         
         # Section: Files
         self.files_header = QPushButton(f"▼ {tr('files')}")
@@ -125,22 +131,39 @@ class SideBar(QFrame):
         if folder:
             self.folderOpened.emit(folder)
 
-    def set_files(self, files):
-        self.show_file_list()
+    def set_files(self, files, results=None, folder_name=""):
+        self.show_file_list(folder_name)
         self.file_list.clear()
+        results = results or {}
         for f in files:
-            item = QListWidgetItem(f)
-            # Simple icon simulation
-            if f.endswith('.png') or f.endswith('.jpg'):
-                item.setText(f"🖼️ {f}")
-            else:
-                item.setText(f"📄 {f}")
+            item = QListWidgetItem()
+            item.setData(Qt.UserRole, f) # Store filename
+            status = results.get(f, "unreviewed")
+            self.update_item_display(item, f, status)
             self.file_list.addItem(item)
+
+    def update_file_status(self, filename, status):
+        # Find item
+        for i in range(self.file_list.count()):
+            item = self.file_list.item(i)
+            if item.data(Qt.UserRole) == filename:
+                self.update_item_display(item, filename, status)
+                break
+
+    def update_item_display(self, item, filename, status):
+        icon = "⚪" # Unreviewed
+        if status == "pass":
+            icon = "🟢"
+        elif status == "fail":
+            icon = "🔴"
+        elif status == "invalid":
+            icon = "⚠️"
+        
+        item.setText(f"{icon} {filename}")
 
     def on_file_change(self, current, previous):
         if current:
-            # Strip icon
-            filename = current.text().split(' ', 1)[1]
+            filename = current.data(Qt.UserRole)
             self.fileSelected.emit(filename)
 
 
@@ -223,7 +246,7 @@ class ImageViewer(QGraphicsView):
 
 
 class EditorArea(QFrame):
-    decisionMade = Signal(str) # "pass" or "fail"
+    decisionMade = Signal(str) # "pass", "fail", "invalid", etc.
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -256,19 +279,40 @@ class EditorArea(QFrame):
         self.action_bar_layout = QHBoxLayout(self.action_bar)
         self.action_bar_layout.setContentsMargins(10, 5, 10, 5)
         
-        self.btn_pass = QPushButton(f"{tr('pass')} (P)")
-        self.btn_pass.setObjectName("ActionButton")
-        self.btn_pass.setShortcut("P")
-        self.btn_pass.clicked.connect(lambda: self.decisionMade.emit("pass"))
+        # Dynamic Buttons Configuration
+        # You can add more buttons here easily
+        self.buttons_config = [
+            {"id": "fail", "label": "fail", "shortcut": "F", "color": "#a10000", "hover": "#bd0000"},
+            {"id": "invalid", "label": "invalid", "shortcut": "I", "color": "#8e8e8e", "hover": "#a0a0a0"}, # Grey for invalid
+            {"id": "pass", "label": "pass", "shortcut": "P", "color": "#0e639c", "hover": "#1177bb"},
+        ]
         
-        self.btn_fail = QPushButton(f"{tr('fail')} (F)")
-        self.btn_fail.setObjectName("FailButton")
-        self.btn_fail.setShortcut("F")
-        self.btn_fail.clicked.connect(lambda: self.decisionMade.emit("fail"))
+        self.action_bar_layout.addStretch()
+        
+        for btn_cfg in self.buttons_config:
+            btn = QPushButton(f"{tr(btn_cfg['label'])} ({btn_cfg['shortcut']})")
+            # Custom styling for each button
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {btn_cfg['color']};
+                    color: #ffffff;
+                    border: none;
+                    padding: 6px 16px;
+                    border-radius: 2px;
+                    font-size: 13px;
+                }}
+                QPushButton:hover {{
+                    background-color: {btn_cfg['hover']};
+                }}
+            """)
+            btn.setShortcut(btn_cfg['shortcut'])
+            # Use default argument to capture current config
+            btn.clicked.connect(lambda checked=False, cid=btn_cfg['id']: self.decisionMade.emit(cid))
+            self.action_bar_layout.addWidget(btn)
+            # Add spacing
+            self.action_bar_layout.addSpacing(10)
 
         self.action_bar_layout.addStretch()
-        self.action_bar_layout.addWidget(self.btn_fail)
-        self.action_bar_layout.addWidget(self.btn_pass)
 
         self.layout.addWidget(self.action_bar)
 
@@ -292,6 +336,6 @@ class StatsView(QWidget):
         self.layout.addWidget(self.stats_label)
         self.layout.addStretch()
 
-    def update_stats(self, total, passed, failed):
-        text = f"{tr('total')}: {total}\n{tr('passed')}: {passed}\n{tr('failed')}: {failed}"
+    def update_stats(self, total, passed, failed, invalid=0, unreviewed=0):
+        text = f"{tr('total')}: {total}\n{tr('passed')}: {passed}\n{tr('failed')}: {failed}\n{tr('invalid')}: {invalid}\n{tr('unreviewed')}: {unreviewed}"
         self.stats_label.setText(text)
