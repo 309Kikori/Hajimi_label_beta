@@ -1,12 +1,120 @@
-/* Global */
-QWidget {
-    background-color: #1e1e1e;
-    color: #cccccc;
-    font-family: "Segoe UI", sans-serif;
+/* Global Reset */
+* {
+    font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
     font-size: 13px;
+    color: #cccccc;
 }
 
-/* Activity Bar */
+QMainWindow {
+    background-color: #1e1e1e;
+}
+
+QWidget {
+    background-color: #1e1e1e;
+    border: none;
+}
+
+/* --- Menu Bar --- */
+QMenuBar {
+    background-color: #1e1e1e; /* Dark background */
+    color: #cccccc;
+    border-bottom: 1px solid #333333;
+}
+
+QMenuBar::item {
+    background-color: transparent;
+    padding: 4px 10px;
+}
+
+QMenuBar::item:selected {
+    background-color: #333333;
+    color: #ffffff;
+}
+
+QMenu {
+    background-color: #252526;
+    color: #cccccc;
+    border: 1px solid #454545;
+}
+
+QMenu::item {
+    padding: 5px 20px;
+}
+
+QMenu::item:selected {
+    background-color: #094771;
+    color: #ffffff;
+}
+
+/* --- Splitter --- */
+QSplitter::handle {
+    background-color: #1e1e1e;
+}
+
+QSplitter::handle:hover {
+    background-color: #007acc; /* Highlight on hover */
+}
+
+/* --- Scrollbars (VS Code Style) --- */
+QScrollBar:vertical {
+    border: none;
+    background: #1e1e1e;
+    width: 10px;
+    margin: 0px;
+}
+
+QScrollBar::handle:vertical {
+    background: #424242;
+    min-height: 20px;
+    border-radius: 0px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: #4f4f4f;
+}
+
+QScrollBar::handle:vertical:pressed {
+    background: #5f5f5f;
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background: none;
+}
+
+QScrollBar:horizontal {
+    border: none;
+    background: #1e1e1e;
+    height: 10px;
+    margin: 0px;
+}
+
+QScrollBar::handle:horizontal {
+    background: #424242;
+    min-width: 20px;
+    border-radius: 0px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background: #4f4f4f;
+}
+
+QScrollBar::handle:horizontal:pressed {
+    background: #5f5f5f;
+}
+
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0px;
+}
+
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+    background: none;
+}
+
+/* --- Activity Bar (Leftmost) --- */
 QFrame#ActivityBar {
     background-color: #333333;
     min-width: 48px;
@@ -18,8 +126,14 @@ QPushButton#ActivityButton {
     background-color: transparent;
     border: none;
     border-left: 2px solid transparent;
-    padding: 10px;
+    padding: 12px;
     color: #858585;
+    font-size: 24px; /* Large icons */
+    text-align: center;
+}
+
+QPushButton#ActivityButton:hover {
+    color: #ffffff;
 }
 
 QPushButton#ActivityButton:checked {
@@ -27,24 +141,39 @@ QPushButton#ActivityButton:checked {
     border-left: 2px solid #ffffff;
 }
 
-QPushButton#ActivityButton:hover {
-    color: #ffffff;
-}
-
-/* Side Bar */
+/* --- Side Bar (Explorer) --- */
 QFrame#SideBar {
     background-color: #252526;
-    min-width: 200px;
-    border-right: 1px solid #444444;
+    min-width: 220px;
+    max-width: 300px;
+    border-right: 1px solid #1e1e1e; /* Subtle separator */
 }
 
 QLabel#SideBarTitle {
     font-size: 11px;
     font-weight: bold;
-    padding: 10px;
+    padding: 10px 20px;
     color: #bbbbbb;
+    background-color: #252526;
+    text-transform: uppercase;
 }
 
+/* Section Headers in Side Bar */
+QPushButton#SectionHeader {
+    background-color: #252526;
+    color: #bbbbbb;
+    font-weight: bold;
+    font-size: 11px;
+    text-align: left;
+    padding: 4px 4px 4px 2px;
+    border: none;
+    text-transform: uppercase;
+}
+QPushButton#SectionHeader:hover {
+    color: #ffffff;
+}
+
+/* File List */
 QListWidget {
     background-color: #252526;
     border: none;
@@ -52,41 +181,66 @@ QListWidget {
 }
 
 QListWidget::item {
-    padding: 5px;
+    height: 22px;
+    padding-left: 5px;
     color: #cccccc;
-}
-
-QListWidget::item:selected {
-    background-color: #37373d;
-    color: #ffffff;
 }
 
 QListWidget::item:hover {
     background-color: #2a2d2e;
 }
 
-/* Editor Area */
+QListWidget::item:selected {
+    background-color: #37373d;
+    color: #ffffff;
+    border: 1px solid #37373d; /* Fake focus border */
+}
+
+QListWidget::item:selected:active {
+    background-color: #094771; /* VS Code blue selection when focused */
+    color: #ffffff;
+}
+
+/* --- Editor Area --- */
 QFrame#EditorArea {
     background-color: #1e1e1e;
 }
 
-/* Status Bar */
-QStatusBar {
-    background-color: #007acc;
-    color: #ffffff;
+/* Tab Bar */
+QFrame#TabBar {
+    background-color: #252526;
+    max-height: 35px;
+    min-height: 35px;
 }
 
-QStatusBar::item {
+QLabel#TabLabel {
+    background-color: #1e1e1e; /* Active Tab Color */
+    color: #ffffff;
+    padding: 8px 15px;
+    border-top: 1px solid #007acc; /* Active Tab Top Border */
+    font-size: 13px;
+}
+
+/* Image Viewer Background */
+QGraphicsView {
+    background-color: #1e1e1e;
     border: none;
 }
 
-/* Buttons */
+/* --- Action Bar (Bottom of Editor) --- */
+QFrame#ActionBar {
+    background-color: #1e1e1e;
+    border-top: 1px solid #333333;
+    max-height: 50px;
+}
+
 QPushButton#ActionButton {
     background-color: #0e639c;
     color: #ffffff;
     border: none;
-    padding: 6px 12px;
+    padding: 6px 16px;
     border-radius: 2px;
+    font-size: 13px;
 }
 
 QPushButton#ActionButton:hover {
@@ -94,13 +248,46 @@ QPushButton#ActionButton:hover {
 }
 
 QPushButton#FailButton {
-    background-color: #a10000;
+    background-color: #a10000; /* Error Red */
     color: #ffffff;
     border: none;
-    padding: 6px 12px;
+    padding: 6px 16px;
     border-radius: 2px;
+    font-size: 13px;
 }
 
 QPushButton#FailButton:hover {
     background-color: #bd0000;
+}
+
+/* --- Status Bar --- */
+QStatusBar {
+    background-color: #007acc;
+    color: #ffffff;
+    min-height: 22px;
+}
+
+QStatusBar::item {
+    border: none;
+}
+
+QLabel#StatusLabel {
+    color: #ffffff;
+    padding: 0 10px;
+    font-size: 12px;
+}
+
+/* --- Statistics View --- */
+QLabel#StatsTitle {
+    font-size: 24px;
+    font-weight: normal;
+    color: #cccccc;
+    padding: 20px;
+}
+
+QLabel#StatsText {
+    font-size: 16px;
+    color: #cccccc;
+    padding: 20px;
+    line-height: 150%;
 }
