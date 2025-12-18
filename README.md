@@ -1,5 +1,5 @@
 # 标签审核工具
-
+![alt text](Doc/Hajimi_Label_icon.png)
 一个用于审核标注图像的 VS Code 风格应用程序。
 ![alt text](Doc/界面预览.png)
 

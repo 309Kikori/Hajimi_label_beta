@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (
     QLineEdit, QFormLayout, QScrollArea
 )
 from PySide6.QtCore import QFile, QTextStream, Qt
-from PySide6.QtGui import QAction
+from PySide6.QtGui import QAction, QIcon
 
 from ui import ActivityBar, SideBar, EditorArea, StatsView
 from overview import OverviewPage
@@ -362,6 +362,15 @@ class MainWindow(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    
+    # Set App Icon
+    icon_path = resource_path("icon.ico")
+    if not os.path.exists(icon_path):
+        icon_path = resource_path("Hajimi_Label_icon.png")
+    
+    if os.path.exists(icon_path):
+        app.setWindowIcon(QIcon(icon_path))
+
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
