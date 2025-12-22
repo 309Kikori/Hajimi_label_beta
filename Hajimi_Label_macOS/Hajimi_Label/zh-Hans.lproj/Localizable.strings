@@ -3,7 +3,7 @@
 "no_folder" = "未打开文件夹";
 "files" = "文件";
 "review" = "审核";
-"overview" = "概览";
+"overview" = "总览";
 "stats_title" = "统计数据";
 "settings_title" = "设置";
 "appearance" = "外观";
@@ -12,7 +12,7 @@
 "grid_color" = "网格颜色";
 "bg_color" = "背景颜色";
 "max_image_width" = "最大图片宽度";
-"enable_overview" = "启用概览";
+"enable_overview" = "启用总览";
 "total" = "总计";
 "passed" = "通过";
 "failed" = "未通过";

@@ -484,7 +484,6 @@ struct OverviewItemView: View {
                 .cornerRadius(4)
         }
         .padding(5)
-        .drawingGroup() // [GPU 加速] 在单个项目级别应用，不影响手势坐标系
         .scaleEffect(zoomScale) // 应用触控板缩放的临时状态
         .offset(dragOffset)
         .gesture(

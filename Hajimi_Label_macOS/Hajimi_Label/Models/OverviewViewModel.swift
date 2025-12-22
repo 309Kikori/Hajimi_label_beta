@@ -39,7 +39,7 @@ class OverviewViewModel: ObservableObject {
     func visibleItems(in viewportSize: CGSize) -> [OverviewItem] {
         // 计算可见区域（屏幕空间 -> 世界空间）
         // 世界坐标 = (屏幕坐标 - offset) / scale
-        let margin: CGFloat = 300 // 额外边距，确保边缘项目不会突然出现/消失
+        let margin: CGFloat = 600 // 额外边距，确保边缘项目不会突然出现/消失
         
         // 屏幕中心在世界坐标系中的位置
         let centerX = -canvasOffset.width
