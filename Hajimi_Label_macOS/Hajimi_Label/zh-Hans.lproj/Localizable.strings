@@ -24,3 +24,4 @@
 "fail" = "未通过";
 "no_file_selected" = "未选择文件";
 "status_ready" = "就绪";
+"auto_arrange" = "自动排列";

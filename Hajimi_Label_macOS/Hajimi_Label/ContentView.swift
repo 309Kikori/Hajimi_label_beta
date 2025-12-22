@@ -10,6 +10,7 @@ import SwiftUI
 struct ContentView: View {
     @ObservedObject var appModel: AppModel
     @ObservedObject var settings: SettingsModel
+    @StateObject private var overviewViewModel = OverviewViewModel()
     
     var body: some View {
         VStack(spacing: 0) {
@@ -33,7 +34,7 @@ struct ContentView: View {
                         case .review:
                             EditorView(appModel: appModel, settings: settings)
                         case .overview:
-                            OverviewView(appModel: appModel)
+                            OverviewView(appModel: appModel, viewModel: overviewViewModel)
                         case .stats:
                             StatsView(appModel: appModel)
                         case .settings:
