@@ -36,31 +36,25 @@ struct EditorView: View {
                             .aspectRatio(contentMode: .fit)
                             .scaleEffect(scale)
                             .offset(offset)
-                            .background(
-                                ScrollWheelHandler { zoomFactor in
-                                    let newScale = scale * zoomFactor
-                                    scale = max(0.1, min(newScale, 10.0))
-                                }
-                            )
-                            .gesture(
-                                MagnificationGesture()
-                                    .onChanged { value in
-                                        scale = value
-                                    }
-                            )
-                            .simultaneousGesture(
-                                DragGesture()
-                                    .onChanged { value in
-                                        self.offset = CGSize(width: self.lastOffset.width + value.translation.width, height: self.lastOffset.height + value.translation.height)
-                                    }
-                                    .onEnded { _ in
-                                        self.lastOffset = self.offset
-                                    }
-                            )
-                            .frame(width: geometry.size.width, height: geometry.size.height)
-                            .clipped()
                     }
+                    .frame(width: geometry.size.width, height: geometry.size.height)
                     .background(settings.bgColor)
+                    .clipped()
+                    .overlay(
+                        ScrollWheelHandler { zoomFactor in
+                            let newScale = scale * zoomFactor
+                            scale = max(0.1, min(newScale, 10.0))
+                        }
+                        .simultaneousGesture(
+                            DragGesture()
+                                .onChanged { value in
+                                    self.offset = CGSize(width: self.lastOffset.width + value.translation.width, height: self.lastOffset.height + value.translation.height)
+                                }
+                                .onEnded { _ in
+                                    self.lastOffset = self.offset
+                                }
+                        )
+                    )
                     .overlay(
                         // Action Bar (Floating at bottom)
                         HStack(spacing: 20) {
@@ -118,6 +112,11 @@ struct EditorView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(settings.bgColor)
                 }
+            }
+            .onChange(of: appModel.selectedFile) { _ in
+                scale = 1.0
+                offset = .zero
+                lastOffset = .zero
             }
         }
     }

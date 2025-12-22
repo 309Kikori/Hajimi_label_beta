@@ -36,8 +36,16 @@ struct StatusBarView: View {
             Text("\(NSLocalizedString("unreviewed", comment: "")): \(stats.unreviewed)")
             
             HStack(spacing: 5) {
-                Image(systemName: "bell")
-                Text(NSLocalizedString("status_ready", comment: ""))
+                if let error = appModel.errorMessage {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.yellow)
+                    Text(error)
+                        .foregroundColor(.yellow)
+                        .lineLimit(1)
+                } else {
+                    Image(systemName: "bell")
+                    Text(NSLocalizedString("status_ready", comment: ""))
+                }
             }
         }
         .font(.system(size: 11))

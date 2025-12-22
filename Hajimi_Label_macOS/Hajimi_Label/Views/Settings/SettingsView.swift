@@ -31,3 +31,6 @@ struct SettingsView: View {
 }
 
 
+#Preview {
+    SettingsView(settings: SettingsModel())
+}

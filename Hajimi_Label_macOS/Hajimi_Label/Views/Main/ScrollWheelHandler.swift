@@ -20,7 +20,12 @@ struct ScrollWheelHandler: NSViewRepresentable {
         override func scrollWheel(with event: NSEvent) {
             // Detect vertical scroll for zoom
             if event.deltaY != 0 {
-                let zoomFactor: CGFloat = event.deltaY > 0 ? 1.1 : 0.9
+                // Sensitivity factor
+                let sensitivity: CGFloat = 0.1
+                // Calculate zoom factor: 1.0 + delta * sensitivity
+                // e.g. delta = 1.0 -> factor = 1.1
+                // e.g. delta = -1.0 -> factor = 0.9
+                let zoomFactor = 1.0 + (event.deltaY * sensitivity)
                 onScroll?(zoomFactor)
             }
         }

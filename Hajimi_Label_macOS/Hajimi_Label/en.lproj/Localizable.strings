@@ -18,6 +18,8 @@
 "failed" = "Failed";
 "invalid" = "Invalid";
 "unreviewed" = "Unreviewed";
+"export_json" = "Export JSON";
+"status_ready" = "Ready";
 "pass" = "Pass";
 "fail" = "Fail";
 "no_file_selected" = "No File Selected";

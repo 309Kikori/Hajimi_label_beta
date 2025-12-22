@@ -15,6 +15,7 @@ class AppModel: ObservableObject {
     @Published var files: [URL] = []
     @Published var selectedFile: URL?
     @Published var results: [String: String] = [:]
+    @Published var errorMessage: String?
     
     var stats: (total: Int, passed: Int, failed: Int, invalid: Int, unreviewed: Int) {
         let total = files.count
@@ -33,10 +34,26 @@ class AppModel: ObservableObject {
         
         if panel.runModal() == .OK {
             if let url = panel.url {
-                self.currentFolder = url
-                loadFiles(from: url)
-                ensureResultsFileExists()
-                loadResults()
+                // Release previous security scope if needed
+                if let oldUrl = self.currentFolder {
+                    oldUrl.stopAccessingSecurityScopedResource()
+                }
+                
+                // Request security scoped access
+                if url.startAccessingSecurityScopedResource() {
+                    self.currentFolder = url
+                    loadFiles(from: url)
+                    ensureResultsFileExists()
+                    loadResults()
+                } else {
+                    // Fallback or error handling
+                    self.errorMessage = "Failed to obtain access permissions for the selected folder."
+                    // Try to load anyway, maybe it's not sandboxed
+                    self.currentFolder = url
+                    loadFiles(from: url)
+                    ensureResultsFileExists()
+                    loadResults()
+                }
             }
         }
     }
@@ -81,6 +98,9 @@ class AppModel: ObservableObject {
             try data.write(to: resultsURL)
         } catch {
             print("Error saving results: \(error)")
+            DispatchQueue.main.async {
+                self.errorMessage = "Failed to save results: \(error.localizedDescription)"
+            }
         }
     }
     
@@ -109,6 +129,9 @@ class AppModel: ObservableObject {
                 print("Created empty review_results.json at \(resultsURL.path)")
             } catch {
                 print("Error creating review_results.json: \(error)")
+                DispatchQueue.main.async {
+                    self.errorMessage = "Failed to create review_results.json: \(error.localizedDescription)"
+                }
             }
         }
     }

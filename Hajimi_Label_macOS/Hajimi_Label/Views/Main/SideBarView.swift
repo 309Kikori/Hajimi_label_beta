@@ -82,3 +82,6 @@ struct SideBarView_Previews: PreviewProvider {
         SideBarView(appModel: AppModel())
     }
 }
+
+
+
