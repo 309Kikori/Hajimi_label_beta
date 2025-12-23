@@ -202,7 +202,12 @@ class ImageViewer(QGraphicsView):
         self.scene.clear()
         pixmap = QPixmap(path)
         self._pixmap_item = self.scene.addPixmap(pixmap)
-        self.setSceneRect(QRectF(pixmap.rect()))
+        
+        # Set a large scene rect to allow panning past image edges
+        rect = QRectF(pixmap.rect())
+        w, h = rect.width(), rect.height()
+        # Add margin equal to image size on all sides
+        self.setSceneRect(rect.adjusted(-w, -h, w, h))
         
         # Reset view
         self.resetTransform()
