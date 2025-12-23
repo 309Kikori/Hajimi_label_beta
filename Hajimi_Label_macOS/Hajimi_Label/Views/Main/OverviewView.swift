@@ -3,6 +3,7 @@ import SwiftUI
 // MARK: - Resize Handle
 struct ResizeHandle: View {
     let size: CGFloat
+    let borderWidth: CGFloat // 使用和图片边框相同的屏幕空间适配宽度
     
     var body: some View {
         Circle()
@@ -10,7 +11,7 @@ struct ResizeHandle: View {
             .frame(width: size, height: size)
             .overlay(
                 Circle()
-                    .stroke(Color.blue, lineWidth: 2)
+                    .stroke(Color.blue, lineWidth: borderWidth)
             )
             .shadow(radius: 2)
     }
@@ -270,33 +271,11 @@ struct OverviewView: View {
                         // [性能优化] 视图剔除：只渲染可见区域的项目
                         let visibleItems = viewModel.visibleItems(in: geometry.size)
                         ForEach(visibleItems) { item in
-                            OverviewItemView(
+                            OverviewItemView_Optimized(
+                                viewModel: viewModel,
                                 item: item,
-                                status: appModel.results[item.fileURL.lastPathComponent],
-                                isSelected: viewModel.selectedItemIds.contains(item.id),
-                                canvasScale: viewModel.canvasScale,
-                                onDragEnd: { offset in
-                                    let newPos = CGPoint(
-                                        x: item.position.x + offset.width,
-                                        y: item.position.y + offset.height
-                                    )
-                                    viewModel.updatePosition(for: item.id, newPosition: newPos)
-                                },
-                                onScaleChange: { scaleFactor in
-                                    if let index = viewModel.items.firstIndex(where: { $0.id == item.id }) {
-                                        viewModel.items[index].scale *= scaleFactor
-                                    }
-                                }
+                                status: appModel.results[item.fileURL.lastPathComponent]
                             )
-                            .position(x: item.position.x, y: item.position.y)
-                            .scaleEffect(item.scale) // Apply individual item scale
-                            .onTapGesture {
-                                viewModel.selectedItemIds = [item.id]
-                            }
-                            .onTapGesture(count: 2) {
-                                appModel.selectedFile = item.fileURL
-                                appModel.activeTab = .review
-                            }
                         }
                     }
                     .offset(viewModel.canvasOffset)
@@ -324,6 +303,7 @@ struct OverviewView: View {
                     }
                 }
                 .clipped()
+                .coordinateSpace(name: "Canvas")
                 // Pan Gesture (Space + Drag or Middle Click is handled by WindowAccessor)
                 // We removed the fallback DragGesture to avoid conflict and "double counting" bugs.
             }
@@ -389,30 +369,51 @@ struct OverviewView: View {
     }
 }
 
-struct OverviewItemView: View {
-    let item: OverviewItem
+// MARK: - Overview Item View - 完全基于 HajimiRef 的 ImageView 逻辑
+struct OverviewItemView_Optimized: View {
+    @ObservedObject var viewModel: OverviewViewModel
+    var item: OverviewItem
     let status: String?
-    let isSelected: Bool
-    let canvasScale: CGFloat
-    var onDragEnd: ((CGSize) -> Void)?
-    var onScaleChange: ((CGFloat) -> Void)?
     
-    @State private var dragOffset: CGSize = .zero
+    // Local state for gestures
     @State private var zoomScale: CGFloat = 1.0
+    @State private var initialSelectionBounds: CGRect? = nil
     
-    // [性能优化] 缓存状态颜色计算
-    private var cachedStatusColor: Color {
-        guard let status = status else { return .gray }
-        return statusColor(status)
+    var isSelected: Bool {
+        viewModel.selectedItemIds.contains(item.id)
     }
     
-    // [视觉设计] 恒定屏幕空间手柄大小
+    // [交互逻辑] 计算显示位置 - 完全模仿 HajimiRef
+    private var displayPosition: CGPoint {
+        let currentOffset = isSelected ? viewModel.currentDragOffset : .zero
+        
+        var x = item.position.x + currentOffset.width
+        var y = item.position.y + currentOffset.height
+        
+        // 应用多选缩放 (相对于锚点)
+        if isSelected && viewModel.multiSelectScaleFactor != 1.0 {
+            let anchor = viewModel.multiSelectAnchor
+            x = anchor.x + (item.position.x - anchor.x) * viewModel.multiSelectScaleFactor
+            y = anchor.y + (item.position.y - anchor.y) * viewModel.multiSelectScaleFactor
+        }
+        
+        return CGPoint(x: x, y: y)
+    }
+    
+    // [视觉设计] 恒定屏幕空间尺寸
     private var handleSize: CGFloat {
-        12.0 / (item.scale * canvasScale)
+        let totalScale = max(item.scale * zoomScale * viewModel.canvasScale, 0.01)
+        return 12.0 / totalScale
     }
     
     private var borderWidth: CGFloat {
-        3.0 / (item.scale * canvasScale)
+        let totalScale = max(item.scale * zoomScale * viewModel.canvasScale, 0.01)
+        return 3.0 / totalScale
+    }
+    
+    private var cachedStatusColor: Color {
+        guard let status = status else { return .gray }
+        return statusColor(status)
     }
     
     var body: some View {
@@ -432,6 +433,7 @@ struct OverviewItemView: View {
             if let nsImage = item.thumbnail {
                 Image(nsImage: nsImage)
                     .resizable()
+                    .antialiased(true)
                     .aspectRatio(contentMode: .fit)
                     .frame(width: item.size.width, height: item.size.height)
                     .background(Color.black.opacity(0.1))
@@ -440,30 +442,26 @@ struct OverviewItemView: View {
                     .overlay(
                         ZStack {
                             // 选中边框
-                            RoundedRectangle(cornerRadius: 4)
-                                .stroke(isSelected ? Color.blue : Color.clear, lineWidth: isSelected ? borderWidth : 0)
-                            
-                            // 调整手柄（只在选中时显示）
                             if isSelected {
-                                // Top-Left
-                                ResizeHandle(size: handleSize)
+                                RoundedRectangle(cornerRadius: 4)
+                                    .stroke(Color.blue, lineWidth: borderWidth)
+                                
+                                // Resize Handles - 使用相同的borderWidth保持视觉一致性
+                                ResizeHandle(size: handleSize, borderWidth: borderWidth)
                                     .position(x: 0, y: 0)
-                                    .gesture(resizeGesture(corner: .topLeft))
+                                    .highPriorityGesture(resizeGesture(handle: .topLeading, originalSize: item.size))
                                 
-                                // Top-Right
-                                ResizeHandle(size: handleSize)
+                                ResizeHandle(size: handleSize, borderWidth: borderWidth)
                                     .position(x: item.size.width, y: 0)
-                                    .gesture(resizeGesture(corner: .topRight))
+                                    .highPriorityGesture(resizeGesture(handle: .topTrailing, originalSize: item.size))
                                 
-                                // Bottom-Left
-                                ResizeHandle(size: handleSize)
+                                ResizeHandle(size: handleSize, borderWidth: borderWidth)
                                     .position(x: 0, y: item.size.height)
-                                    .gesture(resizeGesture(corner: .bottomLeft))
+                                    .highPriorityGesture(resizeGesture(handle: .bottomLeading, originalSize: item.size))
                                 
-                                // Bottom-Right
-                                ResizeHandle(size: handleSize)
+                                ResizeHandle(size: handleSize, borderWidth: borderWidth)
                                     .position(x: item.size.width, y: item.size.height)
-                                    .gesture(resizeGesture(corner: .bottomRight))
+                                    .highPriorityGesture(resizeGesture(handle: .bottomTrailing, originalSize: item.size))
                             }
                         }
                     )
@@ -484,72 +482,167 @@ struct OverviewItemView: View {
                 .cornerRadius(4)
         }
         .padding(5)
-        .scaleEffect(zoomScale) // 应用触控板缩放的临时状态
-        .offset(dragOffset)
+        .scaleEffect(item.scale * zoomScale * (isSelected ? viewModel.multiSelectScaleFactor : 1.0))
+        .position(displayPosition)
         .gesture(
             SimultaneousGesture(
-                // 拖拽移动
-                DragGesture(coordinateSpace: .local)
+                // [交互逻辑] 拖拽移动 - 完全模仿 HajimiRef
+                DragGesture(coordinateSpace: .named("Canvas"))
                     .onChanged { value in
-                        self.dragOffset = CGSize(
-                            width: value.translation.width / canvasScale,
-                            height: value.translation.height / canvasScale
+                        // 1. 如果拖拽的是未选中的图片，则选中它
+                        if !isSelected {
+                            if !NSEvent.modifierFlags.contains(.shift) {
+                                viewModel.selectedItemIds = [item.id]
+                            } else {
+                                viewModel.selectedItemIds.insert(item.id)
+                            }
+                        }
+                        
+                        // 2. 更新全局拖拽偏移
+                        viewModel.currentDragOffset = CGSize(
+                            width: value.translation.width / viewModel.canvasScale,
+                            height: value.translation.height / viewModel.canvasScale
                         )
                     }
                     .onEnded { value in
-                        let worldOffset = CGSize(
-                            width: value.translation.width / canvasScale,
-                            height: value.translation.height / canvasScale
+                        // 3. 提交移动
+                        let finalOffset = CGSize(
+                            width: value.translation.width / viewModel.canvasScale,
+                            height: value.translation.height / viewModel.canvasScale
                         )
-                        onDragEnd?(worldOffset)
-                        self.dragOffset = .zero
+                        
+                        for id in viewModel.selectedItemIds {
+                            if let index = viewModel.items.firstIndex(where: { $0.id == id }) {
+                                viewModel.items[index].position.x += finalOffset.width
+                                viewModel.items[index].position.y += finalOffset.height
+                            }
+                        }
+                        
+                        // 4. 重置
+                        viewModel.currentDragOffset = .zero
                     }
                 ,
-                // 触控板双指缩放
-                MagnificationGesture()
-                    .onChanged { value in
-                        zoomScale = value
-                    }
-                    .onEnded { value in
-                        onScaleChange?(value)
-                        zoomScale = 1.0
-                    }
+                SimultaneousGesture(
+                    MagnificationGesture()
+                        .onChanged { value in
+                            zoomScale = value
+                        }
+                        .onEnded { value in
+                            if let index = viewModel.items.firstIndex(where: { $0.id == item.id }) {
+                                viewModel.items[index].scale *= value
+                            }
+                            zoomScale = 1.0
+                        }
+                    ,
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { _ in }
+                )
             )
         )
+        .onTapGesture {
+            // [交互逻辑] 单击选中 - 放在手势外面确保纯点击也能触发
+            if NSEvent.modifierFlags.contains(.shift) {
+                if isSelected {
+                    viewModel.selectedItemIds.remove(item.id)
+                } else {
+                    viewModel.selectedItemIds.insert(item.id)
+                }
+            } else {
+                viewModel.selectedItemIds = [item.id]
+            }
+        }
     }
     
-    // [交互逻辑] 调整手柄拖拽手势
-    private func resizeGesture(corner: ResizeCorner) -> some Gesture {
-        DragGesture(coordinateSpace: .local)
+    // [交互逻辑] 调整大小手势 (对角缩放) - 完全模仿 HajimiRef
+    // 支持多选缩放：所有选中的图片会一起缩放，位置也会相对锚点调整
+    private func resizeGesture(handle: Alignment, originalSize: CGSize) -> some Gesture {
+        DragGesture(minimumDistance: 1, coordinateSpace: .named("Canvas"))
             .onChanged { value in
-                // 拖拽手柄时的视觉反馈可以在这里实现
-                // 为简化，我们直接在 onEnded 时处理
-            }
-            .onEnded { value in
-                // 计算缩放因子
-                let delta = value.translation
-                let originalSize = item.size
-                
-                // 根据角落计算缩放变化
-                var scaleDelta: CGFloat = 0
-                switch corner {
-                case .topLeft:
-                    scaleDelta = -(delta.width + delta.height) / (originalSize.width + originalSize.height)
-                case .topRight:
-                    scaleDelta = (delta.width - delta.height) / (originalSize.width + originalSize.height)
-                case .bottomLeft:
-                    scaleDelta = (-delta.width + delta.height) / (originalSize.width + originalSize.height)
-                case .bottomRight:
-                    scaleDelta = (delta.width + delta.height) / (originalSize.width + originalSize.height)
+                // 1. 初始化：计算初始边界和锚点
+                if initialSelectionBounds == nil {
+                    // 如果有多个选中项，使用整体边界；否则使用单个项的边界
+                    if let bounds = viewModel.calculateSelectionBounds() {
+                        initialSelectionBounds = bounds
+                        
+                        // 根据手柄位置确定对角锚点
+                        switch handle {
+                        case .bottomTrailing: // 拖右下 -> 锚点左上
+                            viewModel.multiSelectAnchor = CGPoint(x: bounds.minX, y: bounds.minY)
+                        case .topLeading: // 拖左上 -> 锚点右下
+                            viewModel.multiSelectAnchor = CGPoint(x: bounds.maxX, y: bounds.maxY)
+                        case .topTrailing: // 拖右上 -> 锚点左下
+                            viewModel.multiSelectAnchor = CGPoint(x: bounds.minX, y: bounds.maxY)
+                        case .bottomLeading: // 拖左下 -> 锚点右上
+                            viewModel.multiSelectAnchor = CGPoint(x: bounds.maxX, y: bounds.minY)
+                        default:
+                            viewModel.multiSelectAnchor = CGPoint(x: bounds.midX, y: bounds.midY)
+                        }
+                    }
                 }
                 
-                let newScale = max(0.1, min(5.0, item.scale * (1.0 + scaleDelta / canvasScale)))
-                onScaleChange?(newScale / item.scale)
+                guard let bounds = initialSelectionBounds else { return }
+                let anchor = viewModel.multiSelectAnchor
+                
+                // 2. 计算缩放倍率
+                var startHandlePoint: CGPoint = .zero
+                switch handle {
+                case .bottomTrailing: startHandlePoint = CGPoint(x: bounds.maxX, y: bounds.maxY)
+                case .topLeading:     startHandlePoint = CGPoint(x: bounds.minX, y: bounds.minY)
+                case .topTrailing:    startHandlePoint = CGPoint(x: bounds.maxX, y: bounds.minY)
+                case .bottomLeading:  startHandlePoint = CGPoint(x: bounds.minX, y: bounds.maxY)
+                default: break
+                }
+                
+                let deltaX = value.translation.width / viewModel.canvasScale
+                let deltaY = value.translation.height / viewModel.canvasScale
+                
+                let currentHandlePoint = CGPoint(x: startHandlePoint.x + deltaX,
+                                                 y: startHandlePoint.y + deltaY)
+                
+                // 计算距离比率
+                let startDistX = abs(startHandlePoint.x - anchor.x)
+                let currentDistX = abs(currentHandlePoint.x - anchor.x)
+                
+                let startDistY = abs(startHandlePoint.y - anchor.y)
+                let currentDistY = abs(currentHandlePoint.y - anchor.y)
+                
+                var k: CGFloat = 1.0
+                
+                if startDistX > 10 {
+                    k = currentDistX / startDistX
+                } else if startDistY > 10 {
+                    k = currentDistY / startDistY
+                }
+                
+                k = max(0.1, k)
+                
+                // 3. 实时预览缩放 - 所有选中的图片都会实时预览
+                viewModel.multiSelectScaleFactor = k
             }
-    }
-    
-    enum ResizeCorner {
-        case topLeft, topRight, bottomLeft, bottomRight
+            .onEnded { value in
+                // 4. 提交更改 - 应用到所有选中的图片
+                let anchor = viewModel.multiSelectAnchor
+                let k = viewModel.multiSelectScaleFactor
+                
+                for id in viewModel.selectedItemIds {
+                    if let index = viewModel.items.firstIndex(where: { $0.id == id }) {
+                        // 更新缩放
+                        viewModel.items[index].scale *= k
+                        
+                        // 更新位置 (相对于锚点缩放)
+                        let oldX = viewModel.items[index].position.x
+                        let oldY = viewModel.items[index].position.y
+                        
+                        viewModel.items[index].position.x = anchor.x + (oldX - anchor.x) * k
+                        viewModel.items[index].position.y = anchor.y + (oldY - anchor.y) * k
+                    }
+                }
+                
+                // 重置临时状态
+                zoomScale = 1.0
+                viewModel.multiSelectScaleFactor = 1.0
+                initialSelectionBounds = nil
+            }
     }
     
     func statusColor(_ status: String) -> Color {

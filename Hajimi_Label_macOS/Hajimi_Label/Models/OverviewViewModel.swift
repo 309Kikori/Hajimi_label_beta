@@ -30,29 +30,67 @@ class OverviewViewModel: ObservableObject {
     @Published var canvasScale: CGFloat = 1.0
     @Published var selectedItemIds: Set<UUID> = []
     
-    // Interaction State
+    // [交互状态] 多选拖拽支持 - 完全模仿 HajimiRef
     @Published var currentDragOffset: CGSize = .zero
+    
+    // [交互状态] 多选缩放因子和锚点
+    @Published var multiSelectScaleFactor: CGFloat = 1.0
+    @Published var multiSelectAnchor: CGPoint = .zero
     
     private var cancellables = Set<AnyCancellable>()
     
+    // MARK: - Selection Helpers (from HajimiRef)
+    func calculateSelectionBounds() -> CGRect? {
+        let selectedItems = items.filter { selectedItemIds.contains($0.id) }
+        guard !selectedItems.isEmpty else { return nil }
+        
+        var minX: CGFloat = .greatestFiniteMagnitude
+        var minY: CGFloat = .greatestFiniteMagnitude
+        var maxX: CGFloat = -.greatestFiniteMagnitude
+        var maxY: CGFloat = -.greatestFiniteMagnitude
+        
+        for item in selectedItems {
+            let w = item.size.width * item.scale
+            let h = item.size.height * item.scale
+            
+            let left = item.position.x - w/2
+            let right = item.position.x + w/2
+            let top = item.position.y - h/2
+            let bottom = item.position.y + h/2
+            
+            if left < minX { minX = left }
+            if right > maxX { maxX = right }
+            if top < minY { minY = top }
+            if bottom > maxY { maxY = bottom }
+        }
+        
+        return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+    }
+    
     // [性能优化] 视图剔除：计算可见区域内的项目
     func visibleItems(in viewportSize: CGSize) -> [OverviewItem] {
+        // 如果图片数量少，直接返回全部，跳过剔除
+        guard items.count > 50 else { return items }
+        
         // 计算可见区域（屏幕空间 -> 世界空间）
-        // 世界坐标 = (屏幕坐标 - offset) / scale
-        let margin: CGFloat = 600 // 额外边距，确保边缘项目不会突然出现/消失
+        // marginRatio 是相对于视口尺寸的外扩比例，防止边缘图片突然出现/消失
+        let marginRatio: CGFloat = 0.5 // 外扩50%的视口尺寸（相对边距）
         
         // 屏幕中心在世界坐标系中的位置
         let centerX = -canvasOffset.width
         let centerY = -canvasOffset.height
         
-        // 可见区域的半宽和半高（世界空间）
-        let halfWidth = (viewportSize.width / 2 + margin) / canvasScale
-        let halfHeight = (viewportSize.height / 2 + margin) / canvasScale
+        // 屏幕可见区域的半宽和半高（世界空间）
+        let halfWidth = viewportSize.width / 2 / canvasScale
+        let halfHeight = viewportSize.height / 2 / canvasScale
         
-        let minX = centerX - halfWidth
-        let maxX = centerX + halfWidth
-        let minY = centerY - halfHeight
-        let maxY = centerY + halfHeight
+        // 加上相对外扩边距（基于视口尺寸）
+        let marginWidth = halfWidth * marginRatio
+        let marginHeight = halfHeight * marginRatio
+        let minX = centerX - halfWidth - marginWidth
+        let maxX = centerX + halfWidth + marginWidth
+        let minY = centerY - halfHeight - marginHeight
+        let maxY = centerY + halfHeight + marginHeight
         
         return items.filter { item in
             let itemHalfSize = max(item.size.width, item.size.height) * item.scale / 2
@@ -89,7 +127,8 @@ class OverviewViewModel: ObservableObject {
     
     func generateThumbnails() {
         let generator = QLThumbnailGenerator.shared
-        let size = CGSize(width: 300, height: 300) // Max thumbnail size
+        // [高清支持] 使用更大的尺寸和2x scale支持Retina屏幕放大后依然清晰
+        let size = CGSize(width: 800, height: 800) // Max thumbnail size
         
         // Capture the current items' IDs to ensure we update the correct ones
         let currentItems = items
@@ -103,7 +142,8 @@ class OverviewViewModel: ObservableObject {
         for item in currentItems {
             let url = item.fileURL
             let id = item.id
-            let request = QLThumbnailGenerator.Request(fileAt: url, size: size, scale: 1.0, representationTypes: .thumbnail)
+            // [高清支持] scale设为2.0以获取Retina分辨率的缩略图
+            let request = QLThumbnailGenerator.Request(fileAt: url, size: size, scale: 2.0, representationTypes: .thumbnail)
             
             generator.generateBestRepresentation(for: request) { (thumbnail, error) in
                 if let thumbnail = thumbnail {
