@@ -3,7 +3,7 @@ from PySide6.QtWidgets import (
     QGraphicsView, QGraphicsPixmapItem, QGraphicsItem, QStyleOptionGraphicsItem,
     QGraphicsScene, QWidget, QVBoxLayout, QPushButton, QHBoxLayout, QFrame, QLabel
 )
-from PySide6.QtCore import Qt, QPointF, QRectF, Signal, QTimer
+from PySide6.QtCore import Qt, QPointF, QRectF, Signal, QTimer, QLineF
 from PySide6.QtGui import QPixmap, QPainter, QColor, QPen, QBrush, QCursor
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 from rectpack import newPacker
@@ -31,6 +31,7 @@ class RefItem(QGraphicsPixmapItem):
         # Resize state
         self._resize_corner = None
         self._anchor_scene_pos = None
+        self._is_resizing = False
 
     def load_high_res(self):
         if self.is_high_res: return
@@ -127,16 +128,57 @@ class RefItem(QGraphicsPixmapItem):
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
             if self._resize_corner:
-                self._anchor_scene_pos = self.mapToScene(self.boundingRect().center()) # Simplified anchor
-                # Real resizing logic is complex, for now just allow moving or simple scaling
-                # Implementing full resize logic requires storing start pos/scale etc.
-                # For this demo, we'll stick to moving and wheel scaling.
-                pass
+                self._is_resizing = True
+                self._start_mouse_pos = event.scenePos()
+                self._start_scale = self.scale()
+                
+                # Determine anchor point (opposite to resize corner)
+                rect = self.boundingRect()
+                if self._resize_corner == "tl":
+                    self._anchor_local = rect.bottomRight()
+                elif self._resize_corner == "tr":
+                    self._anchor_local = rect.bottomLeft()
+                elif self._resize_corner == "bl":
+                    self._anchor_local = rect.topRight()
+                elif self._resize_corner == "br":
+                    self._anchor_local = rect.topLeft()
+                
+                self._anchor_scene = self.mapToScene(self._anchor_local)
+                
+                event.accept()
+                return
             else:
                 self.setCursor(Qt.ClosedHandCursor)
         super().mousePressEvent(event)
 
+    def mouseMoveEvent(self, event):
+        if getattr(self, '_is_resizing', False):
+            current_pos = event.scenePos()
+            
+            # Calculate scale factor based on distance from anchor
+            start_dist = QLineF(self._anchor_scene, self._start_mouse_pos).length()
+            current_dist = QLineF(self._anchor_scene, current_pos).length()
+            
+            if start_dist > 1: 
+                scale_factor = current_dist / start_dist
+                new_scale = self._start_scale * scale_factor
+                
+                # Limit minimum scale
+                if new_scale < 0.05: new_scale = 0.05
+                
+                self.setScale(new_scale)
+                
+                # Compensate position to keep anchor fixed
+                new_anchor_scene_current = self.mapToScene(self._anchor_local)
+                diff = self._anchor_scene - new_anchor_scene_current
+                self.setPos(self.pos() + diff)
+            
+            event.accept()
+        else:
+            super().mouseMoveEvent(event)
+
     def mouseReleaseEvent(self, event):
+        self._is_resizing = False
         self.setCursor(Qt.OpenHandCursor)
         super().mouseReleaseEvent(event)
 

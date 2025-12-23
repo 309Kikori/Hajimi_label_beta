@@ -65,7 +65,7 @@ def resource_path(relative_path):
     try:
         base_path = sys._MEIPASS  # PyInstaller 运行时自动设置
     except Exception:
-        base_path = os.path.abspath(".")  # 开发环境
+        base_path = os.path.dirname(os.path.abspath(__file__))  # 开发环境
     return os.path.join(base_path, relative_path)
 
 
