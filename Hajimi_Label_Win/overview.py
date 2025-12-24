@@ -3,7 +3,7 @@ from PySide6.QtWidgets import (
     QGraphicsView, QGraphicsPixmapItem, QGraphicsItem, QStyleOptionGraphicsItem,
     QGraphicsScene, QWidget, QVBoxLayout, QPushButton, QHBoxLayout, QFrame, QLabel
 )
-from PySide6.QtCore import Qt, QPointF, QRectF, Signal, QTimer
+from PySide6.QtCore import Qt, QPointF, QRectF, Signal, QTimer, QLineF
 from PySide6.QtGui import QPixmap, QPainter, QColor, QPen, QBrush, QCursor
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 from rectpack import newPacker
@@ -31,6 +31,7 @@ class RefItem(QGraphicsPixmapItem):
         # Resize state
         self._resize_corner = None
         self._anchor_scene_pos = None
+        self._is_resizing = False
 
     def load_high_res(self):
         if self.is_high_res: return
@@ -127,16 +128,123 @@ class RefItem(QGraphicsPixmapItem):
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
             if self._resize_corner:
-                self._anchor_scene_pos = self.mapToScene(self.boundingRect().center()) # Simplified anchor
-                # Real resizing logic is complex, for now just allow moving or simple scaling
-                # Implementing full resize logic requires storing start pos/scale etc.
-                # For this demo, we'll stick to moving and wheel scaling.
-                pass
+                self._is_resizing = True
+                self._start_mouse_pos = event.scenePos()
+                self._start_scale = self.scale()
+                
+                selected_items = [item for item in self.scene().selectedItems() if isinstance(item, RefItem)]
+                
+                if len(selected_items) > 1:
+                    # Multi-select: Calculate group bounding box
+                    group_rect = None
+                    for item in selected_items:
+                        item_rect = item.sceneBoundingRect()
+                        if group_rect is None:
+                            group_rect = item_rect
+                        else:
+                            group_rect = group_rect.united(item_rect)
+                    
+                    # Determine anchor based on which corner of THIS item is being dragged
+                    # The anchor should be the opposite corner of the GROUP bounding box
+                    if self._resize_corner == "tl":
+                        self._anchor_scene = group_rect.bottomRight()
+                        self._drag_corner_scene_start = group_rect.topLeft()
+                    elif self._resize_corner == "tr":
+                        self._anchor_scene = group_rect.bottomLeft()
+                        self._drag_corner_scene_start = group_rect.topRight()
+                    elif self._resize_corner == "bl":
+                        self._anchor_scene = group_rect.topRight()
+                        self._drag_corner_scene_start = group_rect.bottomLeft()
+                    elif self._resize_corner == "br":
+                        self._anchor_scene = group_rect.topLeft()
+                        self._drag_corner_scene_start = group_rect.bottomRight()
+                else:
+                    # Single item: use item's own corners
+                    rect = self.boundingRect()
+                    if self._resize_corner == "tl":
+                        self._anchor_local = rect.bottomRight()
+                        self._drag_corner_local = rect.topLeft()
+                    elif self._resize_corner == "tr":
+                        self._anchor_local = rect.bottomLeft()
+                        self._drag_corner_local = rect.topRight()
+                    elif self._resize_corner == "bl":
+                        self._anchor_local = rect.topRight()
+                        self._drag_corner_local = rect.bottomLeft()
+                    elif self._resize_corner == "br":
+                        self._anchor_local = rect.topLeft()
+                        self._drag_corner_local = rect.bottomRight()
+                    
+                    # Convert to scene coordinates
+                    self._anchor_scene = self.mapToScene(self._anchor_local)
+                    self._drag_corner_scene_start = self.mapToScene(self._drag_corner_local)
+                
+                # Store initial state for all selected items
+                self._selected_items_state = []
+                for item in selected_items:
+                    self._selected_items_state.append({
+                        'item': item,
+                        'start_scale': item.scale(),
+                        'start_pos': item.pos()
+                    })
+                
+                event.accept()
+                return
             else:
                 self.setCursor(Qt.ClosedHandCursor)
         super().mousePressEvent(event)
 
+    def mouseMoveEvent(self, event):
+        if getattr(self, '_is_resizing', False):
+            current_mouse_pos = event.scenePos()
+            
+            # Calculate scale factor based on the diagonal distance
+            # Original diagonal distance (from anchor to drag corner)
+            original_diagonal = QLineF(self._anchor_scene, self._drag_corner_scene_start).length()
+            # New diagonal distance (from anchor to current mouse position)
+            new_diagonal = QLineF(self._anchor_scene, current_mouse_pos).length()
+            
+            if original_diagonal > 1:
+                scale_factor = new_diagonal / original_diagonal
+                
+                # Apply to all selected items
+                if hasattr(self, '_selected_items_state') and len(self._selected_items_state) > 1:
+                    # Multi-select: scale all items relative to the anchor of the dragged item
+                    for state in self._selected_items_state:
+                        item = state['item']
+                        start_scale = state['start_scale']
+                        start_pos = state['start_pos']
+                        
+                        new_scale = start_scale * scale_factor
+                        if new_scale < 0.05:
+                            new_scale = 0.05
+                        
+                        item.setScale(new_scale)
+                        
+                        # Adjust position: items move away/toward anchor proportionally
+                        offset = start_pos - self._anchor_scene
+                        new_offset = offset * scale_factor
+                        item.setPos(self._anchor_scene + new_offset)
+                else:
+                    # Single item: scale with diagonal anchor locked
+                    new_scale = self._start_scale * scale_factor
+                    
+                    # Limit minimum scale
+                    if new_scale < 0.05:
+                        new_scale = 0.05
+                    
+                    self.setScale(new_scale)
+                    
+                    # Keep the anchor point fixed in scene coordinates
+                    new_anchor_scene_current = self.mapToScene(self._anchor_local)
+                    diff = self._anchor_scene - new_anchor_scene_current
+                    self.setPos(self.pos() + diff)
+            
+            event.accept()
+        else:
+            super().mouseMoveEvent(event)
+
     def mouseReleaseEvent(self, event):
+        self._is_resizing = False
         self.setCursor(Qt.OpenHandCursor)
         super().mouseReleaseEvent(event)
 
@@ -266,14 +374,7 @@ class OverviewCanvas(QGraphicsView):
             painter.drawPoints(points)
 
     def wheelEvent(self, event):
-        if event.modifiers() & Qt.ControlModifier:
-            items = self.scene.selectedItems()
-            if items:
-                factor = 1.1 if event.angleDelta().y() > 0 else 0.9
-                for item in items:
-                    item.setScale(item.scale() * factor)
-            return
-
+        # Simple zoom: always zoom the view, not individual items
         zoom_factor = 1.1 if event.angleDelta().y() > 0 else 0.9
         self.scale(zoom_factor, zoom_factor)
         self.schedule_lod_update()

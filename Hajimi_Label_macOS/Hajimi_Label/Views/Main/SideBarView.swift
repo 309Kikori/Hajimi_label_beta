@@ -1,11 +1,17 @@
 import SwiftUI
 
+/// The sidebar view displaying the file explorer.
+/// Shows the current folder content and file status.
+///
+/// 显示文件资源管理器的侧边栏视图。
+/// 显示当前文件夹内容和文件状态。
 struct SideBarView: View {
     @ObservedObject var appModel: AppModel
     
     var body: some View {
         VStack(spacing: 0) {
-            // Title
+            // Section Header: "EXPLORER"
+            // 区域标题：“资源管理器”
             HStack {
                 Text("explorer")
                     .font(.system(size: 11))
@@ -16,7 +22,8 @@ struct SideBarView: View {
             .padding(.vertical, 8)
             
             if let folder = appModel.currentFolder {
-                // Folder Header
+                // Folder Name Header
+                // 文件夹名称标题
                 HStack {
                     Text("📂 \(folder.lastPathComponent)")
                         .font(.headline)
@@ -28,17 +35,29 @@ struct SideBarView: View {
                 .background(Color(nsColor: .controlBackgroundColor))
                 
                 // File List
+                // Uses `id: \.self` because URLs are Hashable.
+                // Binds selection to `appModel.selectedFile`.
+                //
+                // 文件列表。
+                // 使用 `id: \.self` 因为 URL 是 Hashable 的。
+                // 将选择绑定到 `appModel.selectedFile`。
                 List(appModel.files, id: \.self, selection: $appModel.selectedFile) { file in
                     HStack {
+                        // Status Icon (Checkmark, X, etc.)
+                        // 状态图标（对号、叉号等）
                         StatusIcon(status: appModel.results[file.lastPathComponent] ?? "unreviewed")
+                        
+                        // Filename
+                        // 文件名
                         Text(file.lastPathComponent)
                             .font(.system(size: 13))
                     }
-                    .tag(file)
+                    .tag(file) // Tag is essential for selection to work in List. (Tag 对于列表中的选择功能至关重要)
                 }
-                .listStyle(SidebarListStyle())
+                .listStyle(SidebarListStyle()) // Use standard macOS sidebar styling. (使用标准 macOS 侧边栏样式)
             } else {
-                // No Folder State
+                // Empty State: Prompt user to open a folder.
+                // 空状态：提示用户打开文件夹。
                 VStack(spacing: 20) {
                     Spacer()
                     Text("no_folder")
@@ -56,6 +75,9 @@ struct SideBarView: View {
     }
 }
 
+/// Helper view to display a status icon based on the review result.
+///
+/// 基于审核结果显示状态图标的辅助视图。
 struct StatusIcon: View {
     let status: String
     

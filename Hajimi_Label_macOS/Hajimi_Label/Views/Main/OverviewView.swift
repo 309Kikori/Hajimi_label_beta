@@ -1,6 +1,11 @@
 import SwiftUI
 
 // MARK: - Resize Handle
+// MARK: - 调整手柄
+
+/// A visual handle for resizing items in the overview.
+///
+/// 概览中用于调整项目大小的视觉手柄。
 struct ResizeHandle: View {
     let size: CGFloat
     let borderWidth: CGFloat // 使用和图片边框相同的屏幕空间适配宽度
@@ -18,6 +23,13 @@ struct ResizeHandle: View {
 }
 
 // MARK: - Window Accessor & Event Monitor
+// MARK: - 窗口访问器与事件监视器
+
+/// A bridge to access the underlying NSWindow and monitor global events.
+/// This is necessary because SwiftUI's native gesture handling can be limited for complex interactions like global panning with the middle mouse button.
+///
+/// 访问底层 NSWindow 并监视全局事件的桥梁。
+/// 这是必要的，因为 SwiftUI 的原生手势处理对于像使用鼠标中键进行全局平移这样的复杂交互可能受到限制。
 struct WindowAccessor: NSViewRepresentable {
     @ObservedObject var viewModel: OverviewViewModel
     
@@ -41,18 +53,9 @@ struct WindowAccessor: NSViewRepresentable {
         Coordinator(viewModel: viewModel)
     }
     
-    // 自定义 NSView 子类，用于正确获取 window
-    class WindowAccessorView: NSView {
-        var onWindowAvailable: ((NSWindow) -> Void)?
-        
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            if let window = window {
-                onWindowAvailable?(window)
-            }
-        }
-    }
-    
+    /// Coordinator class to handle NSEvents.
+    ///
+    /// 处理 NSEvent 的协调器类。
     class Coordinator {
         var viewModel: OverviewViewModel
         private var monitor: Any?
@@ -60,6 +63,7 @@ struct WindowAccessor: NSViewRepresentable {
         private var isMonitorSetup = false
         
         // Pan State
+        // 平移状态
         private var isPanning = false
         private var lastPanLocation: NSPoint = .zero
         
@@ -79,7 +83,11 @@ struct WindowAccessor: NSViewRepresentable {
             removeMonitor()
             isMonitorSetup = true
             
-            // Monitor events globally in the window
+            // Monitor events globally in the window.
+            // We use .addLocalMonitorForEvents to intercept events before they reach other views.
+            //
+            // 在窗口中全局监视事件。
+            // 我们使用 .addLocalMonitorForEvents 在事件到达其他视图之前拦截它们。
             monitor = NSEvent.addLocalMonitorForEvents(matching: [.scrollWheel, .magnify, .otherMouseDown, .otherMouseDragged, .otherMouseUp]) { [weak self] event in
                 return self?.handleEvent(event) ?? event
             }
@@ -95,20 +103,23 @@ struct WindowAccessor: NSViewRepresentable {
         private func handleEvent(_ event: NSEvent) -> NSEvent? {
             guard let window = window, window.isKeyWindow else { return event }
             
-            // Only handle events if the mouse is over the canvas (simplified check: if window is key)
-            // Ideally we should check if mouse is over the specific view, but for now this mimics HajimiRef
+            // Only handle events if the mouse is over the canvas (simplified check: if window is key).
+            // Ideally we should check if mouse is over the specific view, but for now this mimics HajimiRef behavior.
+            //
+            // 仅当鼠标在画布上时处理事件（简化检查：如果窗口是关键窗口）。
+            // 理想情况下，我们应该检查鼠标是否在特定视图上，但目前这模仿了 HajimiRef 的行为。
             
             switch event.type {
             case .scrollWheel:
                 handleScrollWheel(event)
-                return nil 
+                return nil // Consume event (消耗事件)
                 
             case .magnify:
                 handleMagnify(event)
                 return nil
                 
             case .otherMouseDown:
-                if event.buttonNumber == 2 { // Middle Button
+                if event.buttonNumber == 2 { // Middle Button (中键)
                     isPanning = true
                     lastPanLocation = event.locationInWindow
                     NSCursor.closedHand.push()
@@ -116,9 +127,8 @@ struct WindowAccessor: NSViewRepresentable {
                 }
                 
             case .leftMouseDown:
-                // Space + Left Click -> Pan
-                // Removed invalid NSEvent.modifierFlags.contains(.space) check.
-                // Pan is handled by Middle Mouse (button 2) or we can add a key monitor if needed.
+                // Space + Left Click -> Pan logic could go here.
+                // 空格 + 左键 -> 平移逻辑可以放在这里。
                 break
                 
             case .otherMouseDragged:
@@ -127,13 +137,18 @@ struct WindowAccessor: NSViewRepresentable {
                     let deltaX = currentLocation.x - lastPanLocation.x
                     let deltaY = currentLocation.y - lastPanLocation.y
                     
-                    // Apply pan
-                    // [交互优化] 修正缩放后的拖拽灵敏度
+                    // Apply pan.
+                    // [Interaction Optimization] Correct drag sensitivity after zooming.
+                    // When zoomed out (scale < 1), 1px on screen corresponds to 1/scale px in world space.
+                    // Dividing by scale ensures that the canvas moves 1:1 with the mouse cursor visually.
+                    //
+                    // 应用平移。
+                    // [交互优化] 修正缩放后的拖拽灵敏度。
                     // 当画布缩放比例很小（缩小）时，屏幕上的 1px 对应画布世界坐标中的 1/scale px。
                     // 如果不除以 scale，在缩小状态下拖拽会感觉非常“滑”或移动极其缓慢（不跟手）。
                     // 除以 scale 后，鼠标移动 1px，画布内容在视觉上也准确移动 1px。
                     viewModel.canvasOffset.width += deltaX / viewModel.canvasScale
-                    viewModel.canvasOffset.height -= deltaY / viewModel.canvasScale // Y is inverted in some contexts, but here deltaY is up-positive
+                    viewModel.canvasOffset.height -= deltaY / viewModel.canvasScale // Y is inverted in some contexts, but here deltaY is up-positive (Y 在某些上下文中是反转的，但这里 deltaY 是向上为正)
                     
                     lastPanLocation = currentLocation
                     return nil
@@ -154,7 +169,8 @@ struct WindowAccessor: NSViewRepresentable {
         }
         
         private func handleScrollWheel(_ event: NSEvent) {
-            // Wheel -> Zoom Canvas
+            // Wheel -> Zoom Canvas.
+            // 滚轮 -> 缩放画布。
             let zoomDelta = event.deltaY * 0.005
             let zoomFactor = 1.0 + zoomDelta
             let newScale = viewModel.canvasScale * zoomFactor
@@ -162,6 +178,8 @@ struct WindowAccessor: NSViewRepresentable {
         }
         
         private func handleMagnify(_ event: NSEvent) {
+            // Pinch to Zoom (Trackpad).
+            // 捏合缩放（触控板）。
             let zoomFactor = 1.0 + event.magnification
             let newScale = viewModel.canvasScale * zoomFactor
             viewModel.canvasScale = min(max(newScale, 0.1), 10.0)
@@ -170,17 +188,27 @@ struct WindowAccessor: NSViewRepresentable {
 }
 
 // MARK: - Grid Background
+// MARK: - 网格背景
+
 struct GridBackground: View {
     var offset: CGSize
     var scale: CGFloat
     
     var body: some View {
-        // [性能优化] 使用 Canvas 的高性能绘制，优化网格密度
+        // [Performance Optimization] Use Canvas for high-performance drawing.
+        // Canvas is much faster than creating thousands of Circle views in a ZStack.
+        //
+        // [性能优化] 使用 Canvas 的高性能绘制，优化网格密度。
+        // Canvas 比在 ZStack 中创建数千个 Circle 视图要快得多。
         Canvas { context, size in
             let baseSpacing: CGFloat = 40.0
             var effectiveSpacing = baseSpacing
             
-            // LOD: 根据缩放级别调整网格密度
+            // LOD (Level of Detail): Adjust grid density based on zoom level.
+            // If the grid becomes too dense, double the spacing.
+            //
+            // LOD（细节层次）：根据缩放级别调整网格密度。
+            // 如果网格变得太密，将间距加倍。
             while (effectiveSpacing * scale) < 15 {
                 effectiveSpacing *= 2
             }
@@ -191,16 +219,24 @@ struct GridBackground: View {
             let offsetX = offset.width * scale
             let offsetY = offset.height * scale
             
+            // Calculate starting positions to ensure the grid moves with the canvas.
+            // 使用取模运算计算起始位置，确保网格随画布移动。
             var startX = offsetX.truncatingRemainder(dividingBy: gridStep)
             if startX < 0 { startX += gridStep }
             
             var startY = offsetY.truncatingRemainder(dividingBy: gridStep)
             if startY < 0 { startY += gridStep }
             
+            // Center alignment adjustment.
+            // 中心对齐调整。
             startX += (size.width / 2).truncatingRemainder(dividingBy: gridStep)
             startY += (size.height / 2).truncatingRemainder(dividingBy: gridStep)
 
-            // [性能优化] 批量绘制点，减少单独的 fill 调用
+            // [Performance Optimization] Batch draw calls.
+            // Create a single Path containing all dots and fill it once.
+            //
+            // [性能优化] 批量绘制点，减少单独的 fill 调用。
+            // 创建一个包含所有点的 Path 并一次性填充。
             var path = Path()
             for x in stride(from: 0, to: size.width, by: gridStep) {
                 for y in stride(from: 0, to: size.height, by: gridStep) {
@@ -209,7 +245,7 @@ struct GridBackground: View {
             }
             context.fill(path, with: .color(.gray.opacity(0.5)))
         }
-        .allowsHitTesting(false)
+        .allowsHitTesting(false) // Grid should not intercept clicks. (网格不应拦截点击)
     }
 }
 
@@ -217,6 +253,7 @@ struct OverviewView: View {
     @ObservedObject var appModel: AppModel
     @ObservedObject var viewModel: OverviewViewModel
     
+    // [Box Selection] State
     // [拉框多选] 状态
     @State private var selectionRect: CGRect? = nil
     @State private var selectionStart: CGPoint? = nil
@@ -224,13 +261,15 @@ struct OverviewView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Toolbar
+            // 工具栏
             HStack {
                 Text(NSLocalizedString("overview", comment: ""))
                     .font(.headline)
                 Spacer()
                 Button(action: {
                     viewModel.autoArrange()
-                    // autoArrange 内部已经设置了正确的 canvasOffset 来居中显示
+                    // Reset view to center.
+                    // 重置视图到中心。
                     viewModel.canvasScale = 1.0
                 }) {
                     Label(NSLocalizedString("auto_arrange", comment: "Auto Arrange"), systemImage: "square.grid.3x3")
@@ -240,23 +279,30 @@ struct OverviewView: View {
             .background(Color(nsColor: .controlBackgroundColor))
             .overlay(Rectangle().frame(height: 1).foregroundColor(Color(nsColor: .separatorColor)), alignment: .bottom)
             
-            // Canvas - 完全照抄 HajimiRef 的 CanvasView 结构
+            // Canvas Area
+            // 画布区域
             GeometryReader { geometry in
                 ZStack {
-                    // 0. Window Accessor for Events
+                    // 0. Window Accessor for Events (Invisible)
+                    // 0. 用于事件的窗口访问器（不可见）
                     WindowAccessor(viewModel: viewModel)
                         .frame(width: 0, height: 0)
                     
                     // 1. Background Color
+                    // 1. 背景颜色
                     Color(nsColor: .windowBackgroundColor)
                         .ignoresSafeArea()
                     
                     // 2. Grid
+                    // 2. 网格
                     GridBackground(offset: viewModel.canvasOffset, scale: viewModel.canvasScale)
                     
-                    // 3. [拉框多选] 交互层 - 放在图片层下面，用于框选和点击清空
-                    // 完全照抄 HajimiRef 的逻辑
-                    Color.black.opacity(0.001)
+                    // 2.5. [Box Selection] Interaction Layer
+                    // Captures drag events for box selection and click events for clearing selection.
+                    //
+                    // 2.5. [拉框多选] 交互层
+                    // 捕获用于框选的拖拽事件和用于清除选区的点击事件。
+                    Color.black.opacity(0.001) // Nearly transparent to allow hit testing. (几乎透明以允许命中测试)
                         .gesture(
                             DragGesture(minimumDistance: 1, coordinateSpace: .local)
                                 .onChanged { value in
@@ -265,6 +311,8 @@ struct OverviewView: View {
                                     }
                                     let start = selectionStart!
                                     let current = value.location
+                                    // Calculate selection rectangle.
+                                    // 计算选区矩形。
                                     selectionRect = CGRect(
                                         x: min(start.x, current.x),
                                         y: min(start.y, current.y),
@@ -276,30 +324,57 @@ struct OverviewView: View {
                                     if let rect = selectionRect {
                                         selectItems(in: rect, geometry: geometry, addToSelection: NSEvent.modifierFlags.contains(.shift))
                                     }
+                                    // Reset selection state.
+                                    // 重置选区状态。
                                     selectionRect = nil
                                     selectionStart = nil
                                 }
                         )
                         .onTapGesture {
-                            // 点击空白区域清空选中
+                            // Click on empty space clears selection.
+                            // 点击空白区域清空选中。
                             viewModel.selectedItemIds.removeAll()
                         }
                     
-                    // 4. Images Layer - 图片层放在框选交互层上面
+                    // 3. Infinite Canvas Content
+                    // 3. 无限画布内容
                     ZStack {
-                        // [性能优化] 视图剔除：只渲染可见区域的项目
+                        // [Performance Optimization] View Culling: Only render items visible in the viewport.
+                        // [性能优化] 视图剔除：只渲染可见区域的项目。
                         let visibleItems = viewModel.visibleItems(in: geometry.size)
                         ForEach(visibleItems) { item in
                             OverviewItemView_Optimized(
                                 viewModel: viewModel,
                                 item: item,
-                                status: appModel.results[item.fileURL.lastPathComponent]
+                                status: appModel.results[item.fileURL.lastPathComponent],
+                                isSelected: viewModel.selectedItemIds.contains(item.id),
+                                canvasScale: viewModel.canvasScale,
+                                onDragEnd: { offset in
+                                    // Update item position in model.
+                                    // 更新模型中的项目位置。
+                                    let newPos = CGPoint(
+                                        x: item.position.x + offset.width,
+                                        y: item.position.y + offset.height
+                                    )
+                                    viewModel.updatePosition(for: item.id, newPosition: newPos)
+                                },
+                                onScaleChange: { scaleFactor in
+                                    if let index = viewModel.items.firstIndex(where: { $0.id == item.id }) {
+                                        viewModel.items[index].scale *= scaleFactor
+                                    }
+                                }
                             )
-                        }
-                        
-                        // 6. [多选缩放] 选中项的包围盒及手柄 (移入 ZStack 以跟随变换)
-                        if !viewModel.selectedItemIds.isEmpty {
-                            SelectionOverlay(viewModel: viewModel)
+                            .position(x: item.position.x, y: item.position.y)
+                            .scaleEffect(item.scale) // Apply individual item scale. (应用单个项目缩放)
+                            .onTapGesture {
+                                viewModel.selectedItemIds = [item.id]
+                            }
+                            .onTapGesture(count: 2) {
+                                // Double click to open in Review mode.
+                                // 双击在审核模式中打开。
+                                appModel.selectedFile = item.fileURL
+                                appModel.activeTab = .review
+                            }
                         }
                     }
                     .offset(viewModel.canvasOffset)
@@ -307,7 +382,8 @@ struct OverviewView: View {
                     // 确保 ZStack 填满屏幕，使 .position() 的坐标系与屏幕一致
                     .frame(width: geometry.size.width, height: geometry.size.height)
                     
-                    // 5. [拉框多选] 显示框选矩形
+                    // 3.5. [Box Selection] Visual Feedback
+                    // 3.5. [拉框多选] 视觉反馈
                     if let rect = selectionRect {
                         Rectangle()
                             .stroke(Color.blue, lineWidth: 1)
@@ -317,7 +393,8 @@ struct OverviewView: View {
                             .allowsHitTesting(false)
                     }
                     
-                    // 7. Loading Indicator
+                    // 4. Loading Indicator
+                    // 4. 加载指示器
                     if viewModel.isLoading {
                         ProgressView()
                             .scaleEffect(1.5)
@@ -327,12 +404,11 @@ struct OverviewView: View {
                     }
                 }
                 .clipped()
-                .coordinateSpace(name: "Canvas")
-                // Pan Gesture (Space + Drag or Middle Click is handled by WindowAccessor)
-                // We removed the fallback DragGesture to avoid conflict and "double counting" bugs.
             }
         }
         .onAppear {
+            // Initial load if needed.
+            // 如果需要，进行初始加载。
             if viewModel.items.isEmpty && !appModel.files.isEmpty {
                 viewModel.loadImages(from: appModel.files)
             }
@@ -342,52 +418,16 @@ struct OverviewView: View {
         }
     }
     
-    // [坐标转换] 屏幕坐标 -> 世界坐标
-    // 
-    // 变换链：ZStack.offset(O).scaleEffect(S)
-    // 正向：Screen = Center + (World + Offset - Center) * Scale
-    //       简化：Screen = Center*(1-S) + (World + Offset)*S
-    // 
-    // 当 Scale = 1 时：Screen = World + Offset
-    // 所以：World = Screen - Offset
-    // 
-    // 当 Scale ≠ 1 时，以屏幕中心为锚点：
-    // Screen - Center = (World + Offset - Center) * Scale
-    // World = (Screen - Center) / Scale - Offset + Center
-    //
-    // 但由于我们的 offset 设置为 (-centerX, -centerY)，
-    // 当用户点击屏幕中心时，应该得到世界坐标 (centerX, centerY)
-    // 验证：World = (Center - Center) / Scale - (-centerX, -centerY) + Center
-    //            = 0 + (centerX, centerY) + Center  ← 错！多加了 Center
-    //
-    // 实际正确公式（不加回 Center）：
-    // World = (Screen - Center) / Scale - Offset
-    //
-    private func screenToWorld(_ point: CGPoint, geometry: GeometryProxy) -> CGPoint {
+    // [Box Selection] Convert screen space selection rect to world space and select intersecting items.
+    // [拉框多选] 将屏幕空间的框选矩形转换为世界空间，并选中相交的项目。
+    private func selectItems(in rect: CGRect, geometry: GeometryProxy) {
         let frameWidth = geometry.size.width
         let frameHeight = geometry.size.height
         let offset = viewModel.canvasOffset
         let scale = viewModel.canvasScale
         
-        // Step 1: 相对于屏幕中心
-        let x1 = point.x - frameWidth / 2
-        let y1 = point.y - frameHeight / 2
-        
-        // Step 2: 逆缩放
-        let x2 = x1 / scale
-        let y2 = y1 / scale
-        
-        // Step 3: 逆偏移（并加回 Center 以匹配 Top-Left 坐标系）
-        // item.position 是相对于 Top-Left 的，所以我们需要将中心相对坐标转换回 Top-Left 相对坐标
-        let worldX = x2 - offset.width + frameWidth / 2
-        let worldY = y2 - offset.height + frameHeight / 2
-        
-        return CGPoint(x: worldX, y: worldY)
-    }
-    
-    // [拉框多选] 将屏幕空间的框选矩形转换为世界空间，并选中相交的项目
-    private func selectItems(in rect: CGRect, geometry: GeometryProxy, addToSelection: Bool = false) {
-        // 将屏幕矩形的四个角转换到世界空间
+        // Convert the four corners of the screen rect to world space.
+        // 将屏幕矩形的四个角转换到世界空间。
         let corners = [
             CGPoint(x: rect.minX, y: rect.minY),
             CGPoint(x: rect.maxX, y: rect.minY),
@@ -395,7 +435,24 @@ struct OverviewView: View {
             CGPoint(x: rect.minX, y: rect.maxY)
         ]
         
-        let worldCorners = corners.map { screenToWorld($0, geometry: geometry) }
+        let worldCorners = corners.map { p -> CGPoint in
+            // Inverse Transform: Screen -> World
+            // Screen = Center + (World * Scale + Offset)
+            // World = (Screen - Center) / Scale - Offset
+            //
+            // 逆变换：屏幕坐标 -> 世界坐标
+            
+            let x1 = p.x - frameWidth / 2
+            let y1 = p.y - frameHeight / 2
+            
+            let x2 = x1 / scale
+            let y2 = y1 / scale
+            
+            let x3 = x2 - offset.width
+            let y3 = y2 - offset.height
+            
+            return CGPoint(x: x3, y: y3)
+        }
         
         let minWx = worldCorners.map { $0.x }.min()!
         let maxWx = worldCorners.map { $0.x }.max()!
@@ -404,7 +461,8 @@ struct OverviewView: View {
         
         let worldRect = CGRect(x: minWx, y: minWy, width: maxWx - minWx, height: maxWy - minWy)
         
-        // 检查图片中心是否在 worldRect 内（和 HajimiRef 一样）
+        // Find items intersecting with worldRect.
+        // 查找与 worldRect 相交的项目。
         var newSelection = Set<UUID>()
         for item in viewModel.items {
             // item.position 已经是以画布中心为原点的世界坐标
@@ -595,25 +653,31 @@ struct OverviewItemView_Optimized: View {
     @ObservedObject var viewModel: OverviewViewModel
     var item: OverviewItem
     let status: String?
+    let isSelected: Bool
+    let canvasScale: CGFloat
     
-    // Local state for resize gesture
-    @State private var initialDragScale: CGFloat? = nil
-    @State private var dragStartDistance: CGFloat = 0
+    // Callbacks for interaction events.
+    // 交互事件的回调。
+    var onDragEnd: ((CGSize) -> Void)?
+    var onScaleChange: ((CGFloat) -> Void)?
     
-    var isSelected: Bool {
-        viewModel.selectedItemIds.contains(item.id)
+    // Local state for temporary gesture transformations.
+    // 用于临时手势变换的本地状态。
+    @State private var dragOffset: CGSize = .zero
+    @State private var zoomScale: CGFloat = 1.0
+    
+    // [Performance Optimization] Cache status color calculation.
+    // [性能优化] 缓存状态颜色计算。
+    private var cachedStatusColor: Color {
+        guard let status = status else { return .gray }
+        return statusColor(status)
     }
     
-    // 计算显示位置（包含拖拽偏移）
-    private var displayPosition: CGPoint {
-        let currentOffset = isSelected ? viewModel.currentDragOffset : .zero
-        return CGPoint(
-            x: item.position.x + currentOffset.width,
-            y: item.position.y + currentOffset.height
-        )
-    }
-    
-    // 恒定屏幕空间尺寸
+    // [Visual Design] Constant screen-space handle size.
+    // Ensures handles remain the same visual size regardless of zoom level.
+    //
+    // [视觉设计] 恒定屏幕空间手柄大小。
+    // 确保无论缩放级别如何，手柄保持相同的视觉大小。
     private var handleSize: CGFloat {
         let totalScale = max(item.scale * viewModel.canvasScale, 0.01)
         return 12.0 / totalScale
@@ -630,35 +694,9 @@ struct OverviewItemView_Optimized: View {
     }
     
     var body: some View {
-        ZStack {
-            // 1. Image Layer (Centered at position)
-            ZStack {
-                if let nsImage = item.thumbnail {
-                    Image(nsImage: nsImage)
-                        .resizable()
-                        .antialiased(true)
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: item.size.width, height: item.size.height)
-                        .background(Color.black.opacity(0.1))
-                        .cornerRadius(4)
-                        .shadow(radius: isSelected ? 4 : 2)
-                } else {
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.2))
-                        .frame(width: item.size.width, height: item.size.height)
-                        .overlay(ProgressView())
-                }
-                
-                // 选中边框
-                if isSelected {
-                    RoundedRectangle(cornerRadius: 4)
-                        .stroke(Color.blue, lineWidth: borderWidth)
-                        .frame(width: item.size.width, height: item.size.height)
-                }
-            }
-            .frame(width: item.size.width, height: item.size.height)
-            
-            // 2. Status Indicator (Overlay, Top-Left)
+        VStack(spacing: 5) {
+            // Status Indicator Badge
+            // 状态指示徽章
             if let status = status {
                 Text(NSLocalizedString(status, comment: ""))
                     .font(.caption)
@@ -667,12 +705,61 @@ struct OverviewItemView_Optimized: View {
                     .background(cachedStatusColor)
                     .foregroundColor(.white)
                     .cornerRadius(4)
-                    .position(x: 0, y: -15) // Offset relative to center? No, position in ZStack
-                    // Better: Use alignment in ZStack or offset
-                    .offset(y: -item.size.height/2 - 15)
             }
             
-            // 3. Filename (Overlay, Bottom)
+            // Image Content
+            // 图片内容
+            if let nsImage = item.thumbnail {
+                Image(nsImage: nsImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: item.size.width, height: item.size.height)
+                    .background(Color.black.opacity(0.1))
+                    .cornerRadius(4)
+                    .shadow(radius: isSelected ? 4 : 2)
+                    .overlay(
+                        ZStack {
+                            // Selection Border
+                            // 选中边框
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(isSelected ? Color.blue : Color.clear, lineWidth: isSelected ? borderWidth : 0)
+                            
+                            // Resize Handles (Only visible when selected)
+                            // 调整手柄（仅在选中时可见）
+                            if isSelected {
+                                // Top-Left
+                                ResizeHandle(size: handleSize)
+                                    .position(x: 0, y: 0)
+                                    .gesture(resizeGesture(corner: .topLeft))
+                                
+                                // Top-Right
+                                ResizeHandle(size: handleSize)
+                                    .position(x: item.size.width, y: 0)
+                                    .gesture(resizeGesture(corner: .topRight))
+                                
+                                // Bottom-Left
+                                ResizeHandle(size: handleSize)
+                                    .position(x: 0, y: item.size.height)
+                                    .gesture(resizeGesture(corner: .bottomLeft))
+                                
+                                // Bottom-Right
+                                ResizeHandle(size: handleSize)
+                                    .position(x: item.size.width, y: item.size.height)
+                                    .gesture(resizeGesture(corner: .bottomRight))
+                            }
+                        }
+                    )
+            } else {
+                // Placeholder while loading
+                // 加载时的占位符
+                Rectangle()
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(width: item.size.width, height: item.size.height)
+                    .overlay(ProgressView())
+            }
+            
+            // Filename Label
+            // 文件名标签
             Text(item.fileURL.lastPathComponent)
                 .font(.caption)
                 .foregroundColor(.primary)
@@ -680,59 +767,81 @@ struct OverviewItemView_Optimized: View {
                 .frame(width: item.size.width)
                 .background(Color.black.opacity(0.5))
                 .cornerRadius(4)
-                .offset(y: item.size.height/2 + 15)
         }
-        .scaleEffect(item.scale)
-        .contentShape(Rectangle()) // Hit test area includes offsets? No, ZStack frame is determined by children.
-        // If we want hit test to cover text, we need to be careful.
-        // But for selection box alignment, the center of this ZStack MUST be the center of the Image.
-        // Since Image is the first child and has explicit frame, and Text uses .offset (which doesn't affect layout),
-        // the ZStack layout center will be the Image center.
-        .onTapGesture {
-            if NSEvent.modifierFlags.contains(.shift) {
-                if isSelected {
-                    viewModel.selectedItemIds.remove(item.id)
-                } else {
-                    viewModel.selectedItemIds.insert(item.id)
-                }
-            } else {
-                viewModel.selectedItemIds = [item.id]
-            }
-        }
-        // 拖拽移动
+        .padding(5)
+        .scaleEffect(zoomScale) // Apply temporary zoom scale from gesture. (应用手势的临时缩放比例)
+        .offset(dragOffset)     // Apply temporary drag offset. (应用临时拖拽偏移)
         .gesture(
-            DragGesture(minimumDistance: 5, coordinateSpace: .named("Canvas")) // 使用 Canvas 坐标系
-                .onChanged { value in
-                    // 如果拖拽的是未选中的图片，先选中它
-                    if !isSelected {
-                        viewModel.selectedItemIds = [item.id]
+            SimultaneousGesture(
+                // Drag Gesture for moving the item.
+                // 用于移动项目的拖拽手势。
+                DragGesture(coordinateSpace: .local)
+                    .onChanged { value in
+                        // Convert screen translation to world translation.
+                        // 将屏幕平移转换为世界平移。
+                        self.dragOffset = CGSize(
+                            width: value.translation.width / canvasScale,
+                            height: value.translation.height / canvasScale
+                        )
                     }
-                    
-                    // 更新拖拽偏移
-                    // value.translation 是屏幕像素单位，需要除以 canvasScale 转换为世界坐标单位
-                    viewModel.currentDragOffset = CGSize(
-                        width: value.translation.width / viewModel.canvasScale,
-                        height: value.translation.height / viewModel.canvasScale
-                    )
-                }
-                .onEnded { value in
-                    // 提交移动
-                    let finalOffset = CGSize(
-                        width: value.translation.width / viewModel.canvasScale,
-                        height: value.translation.height / viewModel.canvasScale
-                    )
-                    
-                    for id in viewModel.selectedItemIds {
-                        if let index = viewModel.items.firstIndex(where: { $0.id == id }) {
-                            viewModel.items[index].position.x += finalOffset.width
-                            viewModel.items[index].position.y += finalOffset.height
-                        }
+                    .onEnded { value in
+                        let worldOffset = CGSize(
+                            width: value.translation.width / canvasScale,
+                            height: value.translation.height / canvasScale
+                        )
+                        onDragEnd?(worldOffset)
+                        self.dragOffset = .zero
                     }
-                    
-                    viewModel.currentDragOffset = .zero
-                }
+                ,
+                // Magnification Gesture for scaling the item (Trackpad pinch).
+                // 用于缩放项目的放大手势（触控板捏合）。
+                MagnificationGesture()
+                    .onChanged { value in
+                        zoomScale = value
+                    }
+                    .onEnded { value in
+                        onScaleChange?(value)
+                        zoomScale = 1.0
+                    }
+            )
         )
-        .position(displayPosition)
+    }
+    
+    // [Interaction Logic] Resize Handle Gesture
+    // [交互逻辑] 调整手柄手势
+    private func resizeGesture(corner: ResizeCorner) -> some Gesture {
+        DragGesture(coordinateSpace: .local)
+            .onChanged { value in
+                // Visual feedback during drag could be implemented here.
+                // 拖拽过程中的视觉反馈可以在这里实现。
+            }
+            .onEnded { value in
+                // Calculate scale factor based on drag distance and corner.
+                // 根据拖拽距离和角落计算缩放因子。
+                let delta = value.translation
+                let originalSize = item.size
+                
+                var scaleDelta: CGFloat = 0
+                switch corner {
+                case .topLeft:
+                    scaleDelta = -(delta.width + delta.height) / (originalSize.width + originalSize.height)
+                case .topRight:
+                    scaleDelta = (delta.width - delta.height) / (originalSize.width + originalSize.height)
+                case .bottomLeft:
+                    scaleDelta = (-delta.width + delta.height) / (originalSize.width + originalSize.height)
+                case .bottomRight:
+                    scaleDelta = (delta.width + delta.height) / (originalSize.width + originalSize.height)
+                }
+                
+                // Apply new scale with limits (0.1x to 5.0x).
+                // 应用新的缩放比例，并限制范围（0.1x 到 5.0x）。
+                let newScale = max(0.1, min(5.0, item.scale * (1.0 + scaleDelta / canvasScale)))
+                onScaleChange?(newScale / item.scale)
+            }
+    }
+    
+    enum ResizeCorner {
+        case topLeft, topRight, bottomLeft, bottomRight
     }
     
     func statusColor(_ status: String) -> Color {
