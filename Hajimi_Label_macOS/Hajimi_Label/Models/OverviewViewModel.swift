@@ -53,10 +53,14 @@ class OverviewViewModel: ObservableObject {
             let w = item.size.width * item.scale
             let h = item.size.height * item.scale
             
-            let left = item.position.x - w/2
-            let right = item.position.x + w/2
-            let top = item.position.y - h/2
-            let bottom = item.position.y + h/2
+            // 考虑当前的拖拽偏移
+            let posX = item.position.x + currentDragOffset.width
+            let posY = item.position.y + currentDragOffset.height
+            
+            let left = posX - w/2
+            let right = posX + w/2
+            let top = posY - h/2
+            let bottom = posY + h/2
             
             if left < minX { minX = left }
             if right > maxX { maxX = right }
@@ -77,6 +81,8 @@ class OverviewViewModel: ObservableObject {
         let marginRatio: CGFloat = 0.5 // 外扩50%的视口尺寸（相对边距）
         
         // 屏幕中心在世界坐标系中的位置
+        // 公式：World = (Screen - Center) / Scale - Offset
+        // 屏幕中心 Screen = Center，所以 World = 0 / Scale - Offset = -Offset
         let centerX = -canvasOffset.width
         let centerY = -canvasOffset.height
         
@@ -179,16 +185,13 @@ class OverviewViewModel: ObservableObject {
     }
     
     func autoArrange() {
-        // Simple Shelf Algorithm
+        // Simple Shelf Algorithm - 完全照抄 HajimiRef 的坐标系
+        // 图片坐标从 (0, 0) 开始，和 HajimiRef 一样
         var currentX: CGFloat = 0
         var currentY: CGFloat = 0
         var rowHeight: CGFloat = 0
         let gap: CGFloat = 20
         let maxWidth: CGFloat = 2000 // Virtual width for the layout
-        
-        // Sort items by name to keep order
-        // items.sort { $0.fileURL.lastPathComponent < $1.fileURL.lastPathComponent }
-        // Actually, let's keep the order from the file list
         
         var updatedItems = items
         
@@ -201,21 +204,43 @@ class OverviewViewModel: ObservableObject {
                 rowHeight = 0
             }
             
-            updatedItems[i].position = CGPoint(x: currentX, y: currentY)
+            // .position() 把视图中心放到指定坐标
+            // 所以要让左上角对齐到 (currentX, currentY)，需要加上 size/2
+            updatedItems[i].position = CGPoint(
+                x: currentX + item.size.width / 2,
+                y: currentY + item.size.height / 2
+            )
             
             currentX += item.size.width + gap
             rowHeight = max(rowHeight, item.size.height)
         }
         
-        // Center the whole cluster
-        let totalHeight = currentY + rowHeight
-        let offsetX = maxWidth / 2
-        let offsetY = totalHeight / 2
+        // 计算集群边界和中心 (和 HajimiRef 一样)
+        var minX: CGFloat = .greatestFiniteMagnitude
+        var minY: CGFloat = .greatestFiniteMagnitude
+        var maxX: CGFloat = -.greatestFiniteMagnitude
+        var maxY: CGFloat = -.greatestFiniteMagnitude
         
-        for i in 0..<updatedItems.count {
-            updatedItems[i].position.x -= offsetX
-            updatedItems[i].position.y -= offsetY
+        for item in updatedItems {
+            let w = item.size.width * item.scale
+            let h = item.size.height * item.scale
+            
+            let left = item.position.x - w/2
+            let right = item.position.x + w/2
+            let top = item.position.y - h/2
+            let bottom = item.position.y + h/2
+            
+            if left < minX { minX = left }
+            if right > maxX { maxX = right }
+            if top < minY { minY = top }
+            if bottom > maxY { maxY = bottom }
         }
+        
+        let centerX = (minX + maxX) / 2
+        let centerY = (minY + maxY) / 2
+        
+        // 设置 canvasOffset 使集群中心显示在屏幕中心 (和 HajimiRef 一样)
+        canvasOffset = CGSize(width: -centerX, height: -centerY)
         
         self.items = updatedItems
     }
