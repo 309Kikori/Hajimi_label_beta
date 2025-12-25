@@ -307,6 +307,9 @@ class OverviewViewModel: ObservableObject {
         let gap: CGFloat = 20
         let maxWidth: CGFloat = 2000 // Virtual width for the layout. (布局的虚拟宽度)
         
+        // Track actual content bounds for centering
+        var actualMaxX: CGFloat = 0
+        
         // Create a copy to modify.
         // 创建副本以进行修改。
         var updatedItems = items
@@ -330,12 +333,18 @@ class OverviewViewModel: ObservableObject {
             // 前进 X 位置。
             currentX += item.size.width + gap
             rowHeight = max(rowHeight, item.size.height)
+            
+            // Update bounds
+            if currentX > actualMaxX {
+                actualMaxX = currentX
+            }
         }
         
         // Center the whole cluster around (0,0).
         // 将整个集群以 (0,0) 为中心对齐。
         let totalHeight = currentY + rowHeight
-        let offsetX = maxWidth / 2
+        // Use actual width for centering, not the virtual maxWidth
+        let offsetX = actualMaxX / 2
         let offsetY = totalHeight / 2
         
         for i in 0..<updatedItems.count {

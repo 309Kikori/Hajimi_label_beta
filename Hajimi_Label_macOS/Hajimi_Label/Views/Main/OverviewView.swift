@@ -355,6 +355,7 @@ struct OverviewView: View {
                             SelectionOverlay(viewModel: viewModel)
                         }
                     }
+                    .offset(x: geometry.size.width / 2, y: geometry.size.height / 2) // Center (0,0) on screen
                     .offset(viewModel.canvasOffset)
                     .scaleEffect(viewModel.canvasScale)
                     .frame(width: geometry.size.width, height: geometry.size.height)
@@ -426,10 +427,13 @@ struct OverviewView: View {
             let x2 = x1 / scale
             let y2 = y1 / scale
             
-            // Step 3: 逆偏移（并加回 Center 以匹配 Top-Left 坐标系）
-            // item.position 是相对于 Top-Left 的，所以我们需要将中心相对坐标转换回 Top-Left 相对坐标
-            let x3 = x2 - offset.width + frameWidth / 2
-            let y3 = y2 - offset.height + frameHeight / 2
+            // Step 3: 逆偏移
+            // 由于我们在视图中添加了 .offset(x: frameWidth/2, y: frameHeight/2) 来将 (0,0) 居中，
+            // 所以这里不需要再加回 frameWidth/2。
+            // 现在的变换链是：Screen = Center + (World + Offset) * Scale
+            // 所以：World = (Screen - Center) / Scale - Offset
+            let x3 = x2 - offset.width
+            let y3 = y2 - offset.height
             
             return CGPoint(x: x3, y: y3)
         }
