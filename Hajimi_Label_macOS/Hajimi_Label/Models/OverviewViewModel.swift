@@ -96,7 +96,43 @@ class OverviewViewModel: ObservableObject {
     /// 交互过程中的临时拖动偏移量。
     @Published var currentDragOffset: CGSize = .zero
     
+    // [交互状态] 多选缩放因子和锚点
+    @Published var multiSelectScaleFactor: CGFloat = 1.0
+    @Published var multiSelectAnchor: CGPoint = .zero
+    
     private var cancellables = Set<AnyCancellable>()
+    
+    // MARK: - Selection Helpers (from HajimiRef)
+    func calculateSelectionBounds() -> CGRect? {
+        let selectedItems = items.filter { selectedItemIds.contains($0.id) }
+        guard !selectedItems.isEmpty else { return nil }
+        
+        var minX: CGFloat = .greatestFiniteMagnitude
+        var minY: CGFloat = .greatestFiniteMagnitude
+        var maxX: CGFloat = -.greatestFiniteMagnitude
+        var maxY: CGFloat = -.greatestFiniteMagnitude
+        
+        for item in selectedItems {
+            let w = item.size.width * item.scale
+            let h = item.size.height * item.scale
+            
+            // 考虑当前的拖拽偏移
+            let posX = item.position.x + currentDragOffset.width
+            let posY = item.position.y + currentDragOffset.height
+            
+            let left = posX - w/2
+            let right = posX + w/2
+            let top = posY - h/2
+            let bottom = posY + h/2
+            
+            if left < minX { minX = left }
+            if right > maxX { maxX = right }
+            if top < minY { minY = top }
+            if bottom > maxY { maxY = bottom }
+        }
+        
+        return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+    }
     
     // MARK: - View Culling (Performance Optimization)
     // MARK: - 视图剔除（性能优化）
