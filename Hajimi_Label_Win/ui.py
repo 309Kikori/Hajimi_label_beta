@@ -44,6 +44,8 @@ class ActivityBar(QFrame):
         # Default visibility
         self.btn_overview.setVisible(True)
 
+    # MARK: - Helper Methods
+    # MARK: - 辅助方法
     def create_button(self, name, text):
         btn = QPushButton(text)
         btn.setObjectName("ActivityButton")
@@ -77,17 +79,33 @@ class SideBar(QFrame):
 
         # MARK: - UI Initialization
         # MARK: - 界面初始化
-        # Title Area
+        # Title Bar with Refresh Button
+        self.title_bar = QFrame()
+        self.title_bar.setObjectName("SideBarTitleBar")
+        title_layout = QHBoxLayout(self.title_bar)
+        title_layout.setContentsMargins(20, 10, 10, 10)
+        title_layout.setSpacing(0)
+        
         self.title_label = QLabel(tr("explorer"))
         self.title_label.setObjectName("SideBarTitle")
-        self.layout.addWidget(self.title_label)
+        title_layout.addWidget(self.title_label)
+        title_layout.addStretch()
+        
+        # Refresh Button
+        self.btn_refresh = QPushButton("⟳")
+        self.btn_refresh.setObjectName("IconButton")
+        self.btn_refresh.setToolTip(tr("refresh"))
+        self.btn_refresh.setFixedSize(24, 24)
+        title_layout.addWidget(self.btn_refresh)
+        
+        self.layout.addWidget(self.title_bar)
 
         # Content Container
         self.content_widget = QWidget()
         self.content_layout = QVBoxLayout(self.content_widget)
         self.content_layout.setContentsMargins(0,0,0,0)
         self.content_layout.setSpacing(0)
-        self.layout.addWidget(self.content_widget)
+        self.layout.addWidget(self.content_widget, 1)
 
         # Initial State: No Folder
         self.show_no_folder()
@@ -115,21 +133,20 @@ class SideBar(QFrame):
     def show_file_list(self, folder_name=""):
         self.clear_content()
         
-        # Folder Name Header (VS Code Style)
+        # Workspace Folder Header (VS Code Style - Collapsible)
         if folder_name:
-            self.folder_header = QLabel(f"📂 {folder_name}")
-            self.folder_header.setStyleSheet("font-weight: bold; padding: 5px; color: #cccccc; background-color: #252526;")
+            self.folder_header = QPushButton(f"▼ {folder_name.upper()}")
+            self.folder_header.setObjectName("WorkspaceHeader")
+            self.folder_header.setCheckable(True)
+            self.folder_header.setChecked(True)  # Expanded by default
+            self.folder_header.clicked.connect(self.toggle_folder_content)
             self.content_layout.addWidget(self.folder_header)
         
-        # Section: Files
-        self.files_header = QPushButton(f"▼ {tr('files')}")
-        self.files_header.setObjectName("SectionHeader")
-        self.content_layout.addWidget(self.files_header)
-
         # File List
         self.file_list = QListWidget()
         self.file_list.currentItemChanged.connect(self.on_file_change)
         self.content_layout.addWidget(self.file_list)
+        self.content_layout.addStretch()
 
     def clear_content(self):
         while self.content_layout.count():
@@ -162,6 +179,18 @@ class SideBar(QFrame):
                 self.update_item_display(item, filename, status)
                 break
 
+    def toggle_folder_content(self):
+        """切换文件夹内容的显示/隐藏"""
+        is_expanded = self.folder_header.isChecked()
+        self.file_list.setVisible(is_expanded)
+        
+        # Update arrow icon
+        folder_name = self.folder_header.text()[2:]  # Remove arrow and space
+        if is_expanded:
+            self.folder_header.setText(f"▼ {folder_name}")
+        else:
+            self.folder_header.setText(f"▶ {folder_name}")
+
     def update_item_display(self, item, filename, status):
         icon = "⚪" # Unreviewed
         if status == "pass":
@@ -171,8 +200,10 @@ class SideBar(QFrame):
         elif status == "invalid":
             icon = "⚠️"
         
-        item.setText(f"{icon} {filename}")
+        item.setText(f"  {icon} {filename}")
 
+    # MARK: - Event Handling
+    # MARK: - 事件处理
     def on_file_change(self, current, previous):
         if current:
             filename = current.data(Qt.UserRole)
@@ -204,6 +235,8 @@ class ImageViewer(QGraphicsView):
         self._is_panning = False
         self._pan_start = None
 
+    # MARK: - Helper Methods
+    # MARK: - 辅助方法
     def create_checkerboard_brush(self):
         size = 20
         pixmap = QPixmap(size * 2, size * 2)

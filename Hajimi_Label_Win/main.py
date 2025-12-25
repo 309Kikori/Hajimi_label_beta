@@ -373,6 +373,7 @@ class MainWindow(QMainWindow):
         self.activity_bar.pageChanged.connect(self.switch_page)
         self.side_bar.folderOpened.connect(self.load_folder)
         self.side_bar.fileSelected.connect(self.load_file)
+        self.side_bar.btn_refresh.clicked.connect(self.refresh_folder)
         self.editor_area.decisionMade.connect(self.handle_decision)
 
         # 数据状态
@@ -498,6 +499,57 @@ class MainWindow(QMainWindow):
         
         if self.config.get("enable_overview", True):
             self.overview_page.load_images(folder_path, self.files)
+
+    def refresh_folder(self):
+        """
+        刷新当前文件夹，重新加载文件列表。
+        
+        用于检测文件夹中新增或删除的图片文件。
+        """
+        if not self.current_folder:
+            self.add_notification("没有打开的文件夹", "warning")
+            return
+        
+        # 保存当前选中的文件
+        current_file = self.current_file
+        
+        # 重新扫描文件列表（不重新加载 overview，避免卡顿）
+        old_files = set(self.files)
+        self.files = [f for f in os.listdir(self.current_folder) 
+                      if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp'))]
+        new_files = set(self.files)
+        
+        # 检测变化
+        added = new_files - old_files
+        removed = old_files - new_files
+        
+        # 重新加载结果
+        self.load_results()
+        
+        # 更新侧边栏
+        folder_name = os.path.basename(self.current_folder)
+        self.side_bar.set_files(self.files, self.results, folder_name)
+        
+        # 更新统计
+        self.update_stats_status()
+        
+        # 尝试恢复之前选中的文件
+        if current_file and current_file in self.files:
+            self.load_file(current_file)
+        elif len(self.files) > 0:
+            # 如果之前的文件不存在了，选择第一个
+            self.load_file(self.files[0])
+        
+        # 显示刷新通知
+        if added or removed:
+            msg = f"文件夹已刷新"
+            if added:
+                msg += f"，新增 {len(added)} 个文件"
+            if removed:
+                msg += f"，删除 {len(removed)} 个文件"
+            self.add_notification(msg, "info")
+        else:
+            self.add_notification("文件夹已刷新，无变化", "info")
 
     def load_results(self):
         """从 JSON 加载已有的审核结果"""
