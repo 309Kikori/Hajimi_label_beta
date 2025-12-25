@@ -296,18 +296,24 @@ class EditorArea(QFrame):
         
         for btn_cfg in self.buttons_config:
             btn = QPushButton(f"{tr(btn_cfg['label'])} ({btn_cfg['shortcut']})")
-            # Custom styling for each button
+            # Custom styling for each button (面板风格)
+            # 计算按下状态的颜色（比悬停状态更深）
+            pressed_color = self._darken_color(btn_cfg['hover'], 0.85)
             btn.setStyleSheet(f"""
                 QPushButton {{
                     background-color: {btn_cfg['color']};
                     color: #ffffff;
                     border: none;
-                    padding: 6px 16px;
-                    border-radius: 2px;
-                    font-size: 13px;
+                    padding: 6px 18px;
+                    border-radius: 3px;
+                    font-size: 12px;
+                    font-weight: 500;
                 }}
                 QPushButton:hover {{
                     background-color: {btn_cfg['hover']};
+                }}
+                QPushButton:pressed {{
+                    background-color: {pressed_color};
                 }}
             """)
             btn.setShortcut(btn_cfg['shortcut'])
@@ -320,6 +326,13 @@ class EditorArea(QFrame):
         self.action_bar_layout.addStretch()
 
         self.layout.addWidget(self.action_bar)
+
+    def _darken_color(self, hex_color, factor=0.85):
+        """将十六进制颜色加深（用于按下状态）"""
+        hex_color = hex_color.lstrip('#')
+        r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
+        r, g, b = int(r * factor), int(g * factor), int(b * factor)
+        return f"#{r:02x}{g:02x}{b:02x}"
 
     def load_image(self, path):
         filename = path.split("\\")[-1].split("/")[-1]

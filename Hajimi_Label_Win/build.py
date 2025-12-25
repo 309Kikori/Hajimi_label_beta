@@ -46,7 +46,7 @@ def build():
     cmd = [
         "pyinstaller",
         "--noconfirm",
-        "--onedir",
+        "--onefile",
         "--windowed",
         "--add-data", "assets;assets",  # Windows separator is ;
         "--name", "HajimiLabel",
@@ -69,7 +69,7 @@ def build():
     subprocess.check_call(cmd)
     
     print("\nBuild complete!")
-    print(f"Executable is located at: {os.path.abspath('dist/HajimiLabel/HajimiLabel.exe')}")
+    print(f"Executable is located at: {os.path.abspath('dist/HajimiLabel.exe')}")
 
 if __name__ == "__main__":
     build()

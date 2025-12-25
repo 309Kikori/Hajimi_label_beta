@@ -12,33 +12,45 @@ QMainWindow {
 QWidget {
     background-color: #1e1e1e;
     border: none;
+    outline: none; /* 移除焦点虚线框 */
 }
 
 /* --- Menu Bar --- */
 QMenuBar {
-    background-color: #1e1e1e; /* Dark background */
+    background-color: #1e1e1e;
     color: #cccccc;
-    border-bottom: 1px solid #333333;
+    border-bottom: 1px solid #2b2b2b; /* 更细腻的边框 */
+    padding: 2px 0;
 }
 
 QMenuBar::item {
     background-color: transparent;
-    padding: 4px 10px;
+    padding: 5px 12px;
+    border-radius: 4px; /* 圆角 */
+    margin: 0 2px;
 }
 
 QMenuBar::item:selected {
-    background-color: #333333;
+    background-color: rgba(255, 255, 255, 0.05); /* 微妙高光 */
     color: #ffffff;
+}
+
+QMenuBar::item:pressed {
+    background-color: #094771;
 }
 
 QMenu {
     background-color: #252526;
     color: #cccccc;
     border: 1px solid #454545;
+    border-radius: 5px; /* 圆角菜单 */
+    padding: 4px 0;
 }
 
 QMenu::item {
-    padding: 5px 20px;
+    padding: 6px 20px;
+    margin: 0 4px;
+    border-radius: 3px;
 }
 
 QMenu::item:selected {
@@ -46,31 +58,42 @@ QMenu::item:selected {
     color: #ffffff;
 }
 
-/* --- Splitter --- */
+QMenu::separator {
+    height: 1px;
+    background: #454545;
+    margin: 4px 10px;
+}
+
+/* --- Splitter (可拖动分割线) --- */
 QSplitter::handle {
-    background-color: #1e1e1e;
+    background-color: transparent;
+    width: 4px; /* 更宽的拖动区域 */
 }
 
 QSplitter::handle:hover {
-    background-color: #007acc; /* Highlight on hover */
+    background-color: #007acc; /* VS Code 蓝色高亮 */
+}
+
+QSplitter::handle:pressed {
+    background-color: #005f9e; /* 按下时更深 */
 }
 
 /* --- Scrollbars (VS Code Style) --- */
 QScrollBar:vertical {
     border: none;
-    background: #1e1e1e;
+    background: transparent; /* 透明背景，悬停时才显示 */
     width: 10px;
     margin: 0px;
 }
 
 QScrollBar::handle:vertical {
-    background: #424242;
+    background: transparent; /* 默认透明 */
     min-height: 20px;
-    border-radius: 0px;
+    border-radius: 5px; /* 圆角滚动条 */
 }
 
 QScrollBar::handle:vertical:hover {
-    background: #4f4f4f;
+    background: #4f4f4f; /* 悬停时显示 */
 }
 
 QScrollBar::handle:vertical:pressed {
@@ -85,17 +108,23 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
     background: none;
 }
 
+/* 容器悬停时显示滚动条 */
+QListWidget:hover QScrollBar::handle:vertical,
+QScrollArea:hover QScrollBar::handle:vertical {
+    background: #424242;
+}
+
 QScrollBar:horizontal {
     border: none;
-    background: #1e1e1e;
+    background: transparent;
     height: 10px;
     margin: 0px;
 }
 
 QScrollBar::handle:horizontal {
-    background: #424242;
+    background: transparent;
     min-width: 20px;
-    border-radius: 0px;
+    border-radius: 5px;
 }
 
 QScrollBar::handle:horizontal:hover {
@@ -128,17 +157,24 @@ QPushButton#ActivityButton {
     border-left: 2px solid transparent;
     padding: 12px;
     color: #858585;
-    font-size: 24px; /* Large icons */
+    font-size: 24px;
     text-align: center;
+    transition: all 0.2s; /* 平滑过渡 */
 }
 
 QPushButton#ActivityButton:hover {
     color: #ffffff;
+    background-color: rgba(255, 255, 255, 0.05); /* 微妙高光 */
 }
 
 QPushButton#ActivityButton:checked {
     color: #ffffff;
     border-left: 2px solid #ffffff;
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+QPushButton#ActivityButton:pressed {
+    background-color: rgba(255, 255, 255, 0.12);
 }
 
 /* --- Side Bar (Explorer) --- */
@@ -146,7 +182,7 @@ QFrame#SideBar {
     background-color: #252526;
     min-width: 220px;
     max-width: 300px;
-    border-right: 1px solid #1e1e1e; /* Subtle separator */
+    border-right: 1px solid #2b2b2b; /* 更细腻的分割线 */
 }
 
 QLabel#SideBarTitle {
@@ -156,6 +192,7 @@ QLabel#SideBarTitle {
     color: #bbbbbb;
     background-color: #252526;
     text-transform: uppercase;
+    letter-spacing: 0.5px; /* 字母间距 */
 }
 
 /* Section Headers in Side Bar */
@@ -168,9 +205,12 @@ QPushButton#SectionHeader {
     padding: 4px 4px 4px 2px;
     border: none;
     text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
+
 QPushButton#SectionHeader:hover {
     color: #ffffff;
+    background-color: rgba(255, 255, 255, 0.03);
 }
 
 /* File List */
@@ -182,23 +222,25 @@ QListWidget {
 
 QListWidget::item {
     height: 22px;
-    padding-left: 5px;
+    padding-left: 8px;
     color: #cccccc;
+    border-left: 2px solid transparent; /* 预留高亮条空间 */
 }
 
 QListWidget::item:hover {
-    background-color: #2a2d2e;
+    background-color: rgba(255, 255, 255, 0.05); /* 微妙高光 */
 }
 
 QListWidget::item:selected {
     background-color: #37373d;
     color: #ffffff;
-    border: 1px solid #37373d; /* Fake focus border */
+    border-left: 2px solid #007acc; /* 左侧蓝色高亮条 */
 }
 
 QListWidget::item:selected:active {
-    background-color: #094771; /* VS Code blue selection when focused */
+    background-color: #094771; /* 焦点时的蓝色选中 */
     color: #ffffff;
+    border-left: 2px solid #007acc;
 }
 
 /* --- Editor Area --- */
@@ -208,16 +250,18 @@ QFrame#EditorArea {
 
 /* Tab Bar */
 QFrame#TabBar {
-    background-color: #252526;
+    background-color: #2d2d2d; /* 与 HTML 原型一致 */
     max-height: 35px;
     min-height: 35px;
+    border-bottom: 1px solid #2b2b2b;
 }
 
 QLabel#TabLabel {
-    background-color: #1e1e1e; /* Active Tab Color */
+    background-color: #1e1e1e; /* 活动标签页 */
     color: #ffffff;
     padding: 8px 15px;
-    border-top: 1px solid #007acc; /* Active Tab Top Border */
+    border-top: 1px solid #007acc; /* 顶部蓝色高亮 */
+    border-right: 1px solid #2b2b2b;
     font-size: 13px;
 }
 
@@ -227,37 +271,48 @@ QGraphicsView {
     border: none;
 }
 
-/* --- Action Bar (Bottom of Editor) --- */
+/* --- Action Bar (Bottom Panel) --- */
 QFrame#ActionBar {
-    background-color: #1e1e1e;
-    border-top: 1px solid #333333;
-    max-height: 50px;
+    background-color: #252526; /* 与侧边栏一致，形成面板感 */
+    border-top: 1px solid #2b2b2b; /* 更细腻的边框 */
+    min-height: 60px; /* 增加高度以容纳面板头部 */
+    max-height: 60px;
 }
 
 QPushButton#ActionButton {
     background-color: #0e639c;
     color: #ffffff;
     border: none;
-    padding: 6px 16px;
-    border-radius: 2px;
-    font-size: 13px;
+    padding: 6px 18px; /* 稍微紧凑一些，符合面板风格 */
+    border-radius: 3px; /* 稍小的圆角 */
+    font-size: 12px;
+    font-weight: 500;
 }
 
 QPushButton#ActionButton:hover {
     background-color: #1177bb;
 }
 
+QPushButton#ActionButton:pressed {
+    background-color: #005f9e;
+}
+
 QPushButton#FailButton {
-    background-color: #a10000; /* Error Red */
+    background-color: #a10000;
     color: #ffffff;
     border: none;
-    padding: 6px 16px;
-    border-radius: 2px;
-    font-size: 13px;
+    padding: 6px 18px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 500;
 }
 
 QPushButton#FailButton:hover {
     background-color: #bd0000;
+}
+
+QPushButton#FailButton:pressed {
+    background-color: #8b0000;
 }
 
 /* --- Status Bar --- */
@@ -265,6 +320,7 @@ QStatusBar {
     background-color: #007acc;
     color: #ffffff;
     min-height: 22px;
+    border-top: 1px solid #005f9e; /* 顶部高亮 */
 }
 
 QStatusBar::item {
