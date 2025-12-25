@@ -1,3 +1,5 @@
+# MARK: - Imports
+# MARK: - 导入模块
 import math
 from PySide6.QtWidgets import (
     QGraphicsView, QGraphicsPixmapItem, QGraphicsItem, QStyleOptionGraphicsItem,
@@ -10,6 +12,8 @@ from rectpack import newPacker
 
 from localization import tr
 
+# MARK: - RefItem (Graphics Item)
+# MARK: - 图片项（图形元素）
 # --- Graphics Item (Ported from HajimiRef) ---
 class RefItem(QGraphicsPixmapItem):
     def __init__(self, thumbnail_pixmap, full_path, filename):
@@ -28,6 +32,8 @@ class RefItem(QGraphicsPixmapItem):
         # Center the origin
         self.setOffset(-thumbnail_pixmap.width()/2, -thumbnail_pixmap.height()/2)
 
+        # MARK: - Resize State
+        # MARK: - 缩放状态
         # Resize state
         self._resize_corner = None
         self._anchor_scene_pos = None
@@ -48,6 +54,8 @@ class RefItem(QGraphicsPixmapItem):
         self.is_high_res = False
         self.update()
 
+    # MARK: - Rendering
+    # MARK: - 渲染
     def paint(self, painter, option, widget=None):
         # Custom paint to handle high-res drawing within thumbnail bounds
         if self.is_high_res and self.high_res_pixmap:
@@ -95,6 +103,8 @@ class RefItem(QGraphicsPixmapItem):
             for corner in corners:
                 painter.drawEllipse(corner, radius, radius)
 
+    # MARK: - Event Handling
+    # MARK: - 事件处理
     def hoverMoveEvent(self, event):
         if self.isSelected():
             pos = event.pos()
@@ -249,6 +259,8 @@ class RefItem(QGraphicsPixmapItem):
         super().mouseReleaseEvent(event)
 
 
+# MARK: - Overview Canvas
+# MARK: - 总览画布
 # --- Overview Canvas (Ported from HajimiRef RefView) ---
 class OverviewCanvas(QGraphicsView):
     def __init__(self, parent=None, config=None):
@@ -289,6 +301,8 @@ class OverviewCanvas(QGraphicsView):
         self.horizontalScrollBar().valueChanged.connect(self.schedule_lod_update)
         self.verticalScrollBar().valueChanged.connect(self.schedule_lod_update)
 
+    # MARK: - LOD (Level of Detail) Management
+    # MARK: - 细节级别管理
     def schedule_lod_update(self):
         self.lod_timer.start()
 
@@ -336,6 +350,8 @@ class OverviewCanvas(QGraphicsView):
                         if not item.sceneBoundingRect().intersects(view_rect):
                             item.unload_high_res()
 
+    # MARK: - Background Drawing
+    # MARK: - 背景绘制
     def drawBackground(self, painter, rect):
         # Fill background
         bg_color = self.config.get("bg_color", "#1e1e1e")
@@ -373,6 +389,8 @@ class OverviewCanvas(QGraphicsView):
             painter.setPen(QPen(grid_color, 2))
             painter.drawPoints(points)
 
+    # MARK: - Mouse & Keyboard Events
+    # MARK: - 鼠标与键盘事件
     def wheelEvent(self, event):
         # Simple zoom: always zoom the view, not individual items
         zoom_factor = 1.1 if event.angleDelta().y() > 0 else 0.9
@@ -422,6 +440,8 @@ class OverviewCanvas(QGraphicsView):
                 self.setCursor(Qt.ArrowCursor)
         super().keyReleaseEvent(event)
 
+    # MARK: - Layout Organization
+    # MARK: - 布局组织
     def organize_items(self):
         items = self.scene.items()
         if not items: return
@@ -483,6 +503,8 @@ class OverviewCanvas(QGraphicsView):
         pass # We use a fixed massive scene rect now
 
 
+# MARK: - Overview Page
+# MARK: - 总览页面
 class OverviewPage(QWidget):
     def __init__(self, parent=None, config=None):
         super().__init__(parent)

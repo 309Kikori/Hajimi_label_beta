@@ -1,3 +1,5 @@
+# MARK: - Module Documentation
+# MARK: - 模块文档
 """
 Hajimi Label - 图像标注审核工具
 
@@ -19,6 +21,8 @@ Hajimi Label - 图像标注审核工具
 - StatsView: 统计视图 (来自 ui.py)
 """
 
+# MARK: - Imports
+# MARK: - 导入模块
 import sys   # sys.argv: 命令行参数; sys.exit(): 退出程序; sys._MEIPASS: PyInstaller 临时目录
 import os    # os.path: 路径操作; os.listdir(): 列目录
 import json  # json.load/dump: JSON 读写
@@ -51,6 +55,8 @@ from overview import OverviewPage
 from localization import tr  # 国际化函数: tr("key") 返回当前语言的翻译
 
 
+# MARK: - Utility Functions
+# MARK: - 工具函数
 def resource_path(relative_path):
     """
     获取资源文件的绝对路径，兼容开发环境和 PyInstaller 打包环境。
@@ -71,6 +77,8 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 
+# MARK: - Settings Dialog
+# MARK: - 设置对话框
 class SettingsDialog(QDialog):
     """
     设置对话框，VS Code 风格。
@@ -210,6 +218,8 @@ class SettingsDialog(QDialog):
         super().closeEvent(event)  # 调用父类完成关闭
 
 
+# MARK: - Main Window
+# MARK: - 主窗口
 class MainWindow(QMainWindow):
     """
     主窗口，VS Code 风格布局。
@@ -374,6 +384,8 @@ class MainWindow(QMainWindow):
         self.load_stylesheet()
         self.apply_config()
 
+    # MARK: - Menu Setup
+    # MARK: - 菜单设置
     def setup_menu(self):
         """设置菜单栏"""
         menubar = self.menuBar()
@@ -395,6 +407,8 @@ class MainWindow(QMainWindow):
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
 
+    # MARK: - Folder Management
+    # MARK: - 文件夹管理
     def close_folder(self):
         """关闭文件夹，重置所有状态"""
         self.current_folder = ""
@@ -410,6 +424,8 @@ class MainWindow(QMainWindow):
         self.stats_status_label.setText("")
         self.setWindowTitle(tr("app_title"))
 
+    # MARK: - Styling
+    # MARK: - 样式管理
     def load_stylesheet(self):
         """加载外部 QSS 样式表"""
         style_path = resource_path("assets/style.qss")
@@ -422,6 +438,8 @@ class MainWindow(QMainWindow):
         else:
             print(f"Warning: Could not load stylesheet from {style_path}")
 
+    # MARK: - Page Navigation
+    # MARK: - 页面导航
     def switch_page(self, page_name):
         """
         切换内容页面。
@@ -454,6 +472,8 @@ class MainWindow(QMainWindow):
         self.activity_bar.btn_overview.setVisible(self.config.get("enable_overview", True))
         self.overview_page.update_config()
 
+    # MARK: - Image Loading
+    # MARK: - 图片加载
     def load_folder(self, folder_path):
         """
         加载文件夹中的图像文件。
@@ -511,6 +531,8 @@ class MainWindow(QMainWindow):
         status = self.results.get(filename, tr("unreviewed"))
         self.status_label.setText(tr("reviewing", filename, status))
 
+    # MARK: - Review Decision Handling
+    # MARK: - 审核决策处理
     def handle_decision(self, decision):
         """
         处理审核决定，保存结果并自动前进到下一张。
@@ -534,6 +556,8 @@ class MainWindow(QMainWindow):
         else:
             self.status_label.setText(tr("all_reviewed"))
 
+    # MARK: - Statistics
+    # MARK: - 统计功能
     def update_stats(self):
         """更新统计页面数据"""
         # set(): O(1) 查找; 字典推导式: 过滤只统计当前存在的文件
@@ -566,6 +590,8 @@ class MainWindow(QMainWindow):
         self.error_count.setText(str(failed))
         self.warning_count.setText(str(invalid))
 
+    # MARK: - Notification Management
+    # MARK: - 通知管理
     def add_notification(self, message, level="info"):
         """添加通知消息
         
@@ -733,6 +759,8 @@ class MainWindow(QMainWindow):
         dialog.close()
 
 
+# MARK: - Application Entry Point
+# MARK: - 应用程序入口
 if __name__ == "__main__":
     # QApplication: Qt 程序入口，管理事件循环，必须在创建任何窗口前实例化
     app = QApplication(sys.argv)

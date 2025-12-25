@@ -1,5 +1,15 @@
+//
+//  ScrollWheelHandler.swift
+//  Hajimi_Label
+//
+//  Created by shinonome on 17/12/2025.
+//
+
 import SwiftUI
 import AppKit
+
+// MARK: - Scroll Wheel Handler
+// MARK: - 滚轮处理器
 
 /// A SwiftUI wrapper around an NSView to handle scroll wheel events.
 /// SwiftUI's native `.onScroll` or gesture modifiers don't always provide precise delta values needed for zooming.
@@ -24,6 +34,9 @@ struct ScrollWheelHandler: NSViewRepresentable {
         // No updates needed for now.
         // 目前不需要更新。
     }
+    
+    // MARK: - Internal Scroll View
+    // MARK: - 内部滚动视图
     
     /// Internal NSView subclass to override event handling.
     ///

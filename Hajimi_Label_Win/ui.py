@@ -9,6 +9,8 @@ from PySide6.QtGui import QIcon, QPixmap, QAction, QBrush, QColor, QPainter
 
 from localization import tr
 
+# MARK: - Activity Bar
+# MARK: - 活动栏
 class ActivityBar(QFrame):
     pageChanged = Signal(str)
 
@@ -19,6 +21,8 @@ class ActivityBar(QFrame):
         self.layout.setContentsMargins(0, 10, 0, 0)
         self.layout.setSpacing(0)
 
+        # MARK: - Navigation Buttons (Top)
+        # MARK: - 导航按钮（顶部）
         # Using Unicode characters as icons
         self.btn_review = self.create_button("Review", "👁️") # Eye or Picture
         self.btn_overview = self.create_button("Overview", "🗺️") # Map
@@ -29,6 +33,8 @@ class ActivityBar(QFrame):
         self.layout.addWidget(self.btn_stats)
         self.layout.addStretch()
         
+        # MARK: - System Buttons (Bottom)
+        # MARK: - 系统按钮（底部）
         # Settings Button at bottom
         self.btn_settings = self.create_button("Settings", "⚙️")
         self.layout.addWidget(self.btn_settings)
@@ -56,6 +62,8 @@ class ActivityBar(QFrame):
         btn.setChecked(True)
         self.pageChanged.emit(name)
 
+# MARK: - Side Bar (Explorer)
+# MARK: - 侧边栏（资源管理器）
 class SideBar(QFrame):
     fileSelected = Signal(str)
     folderOpened = Signal(str)
@@ -67,6 +75,8 @@ class SideBar(QFrame):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
 
+        # MARK: - UI Initialization
+        # MARK: - 界面初始化
         # Title Area
         self.title_label = QLabel(tr("explorer"))
         self.title_label.setObjectName("SideBarTitle")
@@ -82,6 +92,8 @@ class SideBar(QFrame):
         # Initial State: No Folder
         self.show_no_folder()
 
+    # MARK: - Content Management
+    # MARK: - 内容管理
     def show_no_folder(self):
         # Clear existing content
         self.clear_content()
@@ -167,12 +179,16 @@ class SideBar(QFrame):
             self.fileSelected.emit(filename)
 
 
+# MARK: - Image Viewer
+# MARK: - 图片查看器
 class ImageViewer(QGraphicsView):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.scene = QGraphicsScene(self)
         self.setScene(self.scene)
         
+        # MARK: - View Configuration
+        # MARK: - 视图配置
         # Interaction Settings
         self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
         self.setResizeAnchor(QGraphicsView.AnchorUnderMouse)
@@ -213,6 +229,8 @@ class ImageViewer(QGraphicsView):
         self.resetTransform()
         self.fitInView(self.scene.itemsBoundingRect(), Qt.KeepAspectRatio)
 
+    # MARK: - Event Handling
+    # MARK: - 事件处理
     def wheelEvent(self, event):
         zoom_factor = 1.1 if event.angleDelta().y() > 0 else 0.9
         self.scale(zoom_factor, zoom_factor)
@@ -250,6 +268,8 @@ class ImageViewer(QGraphicsView):
     # Removed resizeEvent to prevent auto-fit on window resize, allowing free movement
 
 
+# MARK: - Editor Area
+# MARK: - 编辑区域
 class EditorArea(QFrame):
     decisionMade = Signal(str) # "pass", "fail", "invalid", etc.
 
@@ -260,6 +280,8 @@ class EditorArea(QFrame):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
 
+        # MARK: - Layout Setup
+        # MARK: - 布局设置
         # Tab Bar
         self.tab_bar = QFrame()
         self.tab_bar.setObjectName("TabBar")
@@ -278,6 +300,8 @@ class EditorArea(QFrame):
         self.viewer = ImageViewer()
         self.layout.addWidget(self.viewer)
 
+        # MARK: - Action Bar (Bottom)
+        # MARK: - 底部操作栏
         # Action Bar (Bottom)
         self.action_bar = QFrame()
         self.action_bar.setObjectName("ActionBar")
@@ -339,6 +363,8 @@ class EditorArea(QFrame):
         self.tab_label.setText(f"🖼️ {filename}")
         self.viewer.load_image(path)
 
+# MARK: - Statistics View
+# MARK: - 统计视图
 class StatsView(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)

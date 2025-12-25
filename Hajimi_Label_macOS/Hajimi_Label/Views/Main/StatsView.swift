@@ -1,5 +1,15 @@
+//
+//  StatsView.swift
+//  Hajimi_Label
+//
+//  Created by shinonome on 17/12/2025.
+//
+
 import SwiftUI
 import UniformTypeIdentifiers
+
+// MARK: - Statistics View
+// MARK: - 统计视图
 
 /// Displays review statistics and provides export functionality.
 ///
@@ -79,6 +89,9 @@ struct StatsView: View {
         }
     }
 }
+
+// MARK: - Statistic Row Component
+// MARK: - 统计行组件
 
 /// A reusable row component for displaying a single statistic.
 ///

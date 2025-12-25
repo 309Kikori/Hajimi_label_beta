@@ -1,7 +1,17 @@
+//
+//  OverviewViewModel.swift
+//  Hajimi_Label
+//
+//  Created by shinonome on 17/12/2025.
+//
+
 import Foundation
 import SwiftUI
 import Combine
 import QuickLookThumbnailing
+
+// MARK: - Overview Item Model
+// MARK: - 概览项目模型
 
 /// Represents a single item (image) on the overview canvas.
 /// Conforms to Identifiable for SwiftUI lists and Equatable for diffing.
@@ -46,6 +56,9 @@ struct OverviewItem: Identifiable, Equatable {
         (lhs.thumbnail != nil) == (rhs.thumbnail != nil) // Only compare existence, not content (只比较是否存在，不比较内容)
     }
 }
+
+// MARK: - Overview View Model
+// MARK: - 概览视图模型
 
 /// View model for the Overview mode.
 /// Manages the state of the infinite canvas, including item positions, selection, and thumbnail generation.

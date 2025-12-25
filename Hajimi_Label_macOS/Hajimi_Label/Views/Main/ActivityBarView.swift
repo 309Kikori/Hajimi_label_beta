@@ -1,4 +1,14 @@
+//
+//  ActivityBarView.swift
+//  Hajimi_Label
+//
+//  Created by shinonome on 17/12/2025.
+//
+
 import SwiftUI
+
+// MARK: - Activity Bar View
+// MARK: - 活动栏视图
 
 /// The vertical navigation bar on the far left, inspired by VS Code.
 /// Allows switching between the main functional modes of the application.
@@ -34,6 +44,9 @@ struct ActivityBarView: View {
         )
     }
 }
+
+// MARK: - Activity Button
+// MARK: - 活动栏按钮
 
 /// A single button in the Activity Bar.
 /// Displays an icon and handles tab switching.

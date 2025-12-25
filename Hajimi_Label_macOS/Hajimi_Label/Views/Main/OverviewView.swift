@@ -1,3 +1,10 @@
+//
+//  OverviewView.swift
+//  Hajimi_Label
+//
+//  Created by shinonome on 17/12/2025.
+//
+
 import SwiftUI
 
 // MARK: - Resize Handle
