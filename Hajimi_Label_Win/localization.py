@@ -48,7 +48,7 @@ class Translator:
                 "stats_status": "Total: {} | Pass: {} | Fail: {} | Invalid: {} | Unreviewed: {}"
             },
             "zh_CN": {
-                "app_title": "hajimi标注验收工具 - ",
+                "app_title": "🐱Hajimi Label  ",
                 "explorer": "资源管理器",
                 "open_folder": "打开文件夹",
                 "no_folder": "未打开文件夹",

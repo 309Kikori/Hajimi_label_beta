@@ -49,6 +49,7 @@ def build():
         "--onefile",
         "--windowed",
         "--add-data", "assets;assets",  # Windows separator is ;
+        "--collect-data", "qtawesome",  # 收集qtawesome的字体文件资源
         "--name", "HajimiLabel",
     ]
 
