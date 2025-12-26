@@ -1,4 +1,14 @@
+//
+//  StatusBarView.swift
+//  Hajimi_Label
+//
+//  Created by shinonome on 17/12/2025.
+//
+
 import SwiftUI
+
+// MARK: - Status Bar View
+// MARK: - 状态栏视图
 
 /// The status bar at the bottom of the window.
 /// Displays current file info, review statistics, and system messages.

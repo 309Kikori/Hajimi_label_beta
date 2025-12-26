@@ -9,6 +9,8 @@ from PySide6.QtGui import QIcon, QPixmap, QAction, QBrush, QColor, QPainter
 
 from localization import tr
 
+# MARK: - Activity Bar
+# MARK: - 活动栏
 class ActivityBar(QFrame):
     pageChanged = Signal(str)
 
@@ -19,6 +21,8 @@ class ActivityBar(QFrame):
         self.layout.setContentsMargins(0, 10, 0, 0)
         self.layout.setSpacing(0)
 
+        # MARK: - Navigation Buttons (Top)
+        # MARK: - 导航按钮（顶部）
         # Using Unicode characters as icons
         self.btn_review = self.create_button("Review", "👁️") # Eye or Picture
         self.btn_overview = self.create_button("Overview", "🗺️") # Map
@@ -29,6 +33,8 @@ class ActivityBar(QFrame):
         self.layout.addWidget(self.btn_stats)
         self.layout.addStretch()
         
+        # MARK: - System Buttons (Bottom)
+        # MARK: - 系统按钮（底部）
         # Settings Button at bottom
         self.btn_settings = self.create_button("Settings", "⚙️")
         self.layout.addWidget(self.btn_settings)
@@ -38,6 +44,8 @@ class ActivityBar(QFrame):
         # Default visibility
         self.btn_overview.setVisible(True)
 
+    # MARK: - Helper Methods
+    # MARK: - 辅助方法
     def create_button(self, name, text):
         btn = QPushButton(text)
         btn.setObjectName("ActivityButton")
@@ -56,6 +64,8 @@ class ActivityBar(QFrame):
         btn.setChecked(True)
         self.pageChanged.emit(name)
 
+# MARK: - Side Bar (Explorer)
+# MARK: - 侧边栏（资源管理器）
 class SideBar(QFrame):
     fileSelected = Signal(str)
     folderOpened = Signal(str)
@@ -67,21 +77,41 @@ class SideBar(QFrame):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
 
-        # Title Area
+        # MARK: - UI Initialization
+        # MARK: - 界面初始化
+        # Title Bar with Refresh Button
+        self.title_bar = QFrame()
+        self.title_bar.setObjectName("SideBarTitleBar")
+        title_layout = QHBoxLayout(self.title_bar)
+        title_layout.setContentsMargins(20, 10, 10, 10)
+        title_layout.setSpacing(0)
+        
         self.title_label = QLabel(tr("explorer"))
         self.title_label.setObjectName("SideBarTitle")
-        self.layout.addWidget(self.title_label)
+        title_layout.addWidget(self.title_label)
+        title_layout.addStretch()
+        
+        # Refresh Button
+        self.btn_refresh = QPushButton("⟳")
+        self.btn_refresh.setObjectName("IconButton")
+        self.btn_refresh.setToolTip(tr("refresh"))
+        self.btn_refresh.setFixedSize(24, 24)
+        title_layout.addWidget(self.btn_refresh)
+        
+        self.layout.addWidget(self.title_bar)
 
         # Content Container
         self.content_widget = QWidget()
         self.content_layout = QVBoxLayout(self.content_widget)
         self.content_layout.setContentsMargins(0,0,0,0)
         self.content_layout.setSpacing(0)
-        self.layout.addWidget(self.content_widget)
+        self.layout.addWidget(self.content_widget, 1)
 
         # Initial State: No Folder
         self.show_no_folder()
 
+    # MARK: - Content Management
+    # MARK: - 内容管理
     def show_no_folder(self):
         # Clear existing content
         self.clear_content()
@@ -103,21 +133,20 @@ class SideBar(QFrame):
     def show_file_list(self, folder_name=""):
         self.clear_content()
         
-        # Folder Name Header (VS Code Style)
+        # Workspace Folder Header (VS Code Style - Collapsible)
         if folder_name:
-            self.folder_header = QLabel(f"📂 {folder_name}")
-            self.folder_header.setStyleSheet("font-weight: bold; padding: 5px; color: #cccccc; background-color: #252526;")
+            self.folder_header = QPushButton(f"▼ {folder_name.upper()}")
+            self.folder_header.setObjectName("WorkspaceHeader")
+            self.folder_header.setCheckable(True)
+            self.folder_header.setChecked(True)  # Expanded by default
+            self.folder_header.clicked.connect(self.toggle_folder_content)
             self.content_layout.addWidget(self.folder_header)
         
-        # Section: Files
-        self.files_header = QPushButton(f"▼ {tr('files')}")
-        self.files_header.setObjectName("SectionHeader")
-        self.content_layout.addWidget(self.files_header)
-
         # File List
         self.file_list = QListWidget()
         self.file_list.currentItemChanged.connect(self.on_file_change)
         self.content_layout.addWidget(self.file_list)
+        self.content_layout.addStretch()
 
     def clear_content(self):
         while self.content_layout.count():
@@ -150,6 +179,18 @@ class SideBar(QFrame):
                 self.update_item_display(item, filename, status)
                 break
 
+    def toggle_folder_content(self):
+        """切换文件夹内容的显示/隐藏"""
+        is_expanded = self.folder_header.isChecked()
+        self.file_list.setVisible(is_expanded)
+        
+        # Update arrow icon
+        folder_name = self.folder_header.text()[2:]  # Remove arrow and space
+        if is_expanded:
+            self.folder_header.setText(f"▼ {folder_name}")
+        else:
+            self.folder_header.setText(f"▶ {folder_name}")
+
     def update_item_display(self, item, filename, status):
         icon = "⚪" # Unreviewed
         if status == "pass":
@@ -159,20 +200,26 @@ class SideBar(QFrame):
         elif status == "invalid":
             icon = "⚠️"
         
-        item.setText(f"{icon} {filename}")
+        item.setText(f"  {icon} {filename}")
 
+    # MARK: - Event Handling
+    # MARK: - 事件处理
     def on_file_change(self, current, previous):
         if current:
             filename = current.data(Qt.UserRole)
             self.fileSelected.emit(filename)
 
 
+# MARK: - Image Viewer
+# MARK: - 图片查看器
 class ImageViewer(QGraphicsView):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.scene = QGraphicsScene(self)
         self.setScene(self.scene)
         
+        # MARK: - View Configuration
+        # MARK: - 视图配置
         # Interaction Settings
         self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
         self.setResizeAnchor(QGraphicsView.AnchorUnderMouse)
@@ -188,6 +235,8 @@ class ImageViewer(QGraphicsView):
         self._is_panning = False
         self._pan_start = None
 
+    # MARK: - Helper Methods
+    # MARK: - 辅助方法
     def create_checkerboard_brush(self):
         size = 20
         pixmap = QPixmap(size * 2, size * 2)
@@ -213,6 +262,8 @@ class ImageViewer(QGraphicsView):
         self.resetTransform()
         self.fitInView(self.scene.itemsBoundingRect(), Qt.KeepAspectRatio)
 
+    # MARK: - Event Handling
+    # MARK: - 事件处理
     def wheelEvent(self, event):
         zoom_factor = 1.1 if event.angleDelta().y() > 0 else 0.9
         self.scale(zoom_factor, zoom_factor)
@@ -250,6 +301,8 @@ class ImageViewer(QGraphicsView):
     # Removed resizeEvent to prevent auto-fit on window resize, allowing free movement
 
 
+# MARK: - Editor Area
+# MARK: - 编辑区域
 class EditorArea(QFrame):
     decisionMade = Signal(str) # "pass", "fail", "invalid", etc.
 
@@ -260,6 +313,8 @@ class EditorArea(QFrame):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
 
+        # MARK: - Layout Setup
+        # MARK: - 布局设置
         # Tab Bar
         self.tab_bar = QFrame()
         self.tab_bar.setObjectName("TabBar")
@@ -278,6 +333,8 @@ class EditorArea(QFrame):
         self.viewer = ImageViewer()
         self.layout.addWidget(self.viewer)
 
+        # MARK: - Action Bar (Bottom)
+        # MARK: - 底部操作栏
         # Action Bar (Bottom)
         self.action_bar = QFrame()
         self.action_bar.setObjectName("ActionBar")
@@ -296,18 +353,24 @@ class EditorArea(QFrame):
         
         for btn_cfg in self.buttons_config:
             btn = QPushButton(f"{tr(btn_cfg['label'])} ({btn_cfg['shortcut']})")
-            # Custom styling for each button
+            # Custom styling for each button (面板风格)
+            # 计算按下状态的颜色（比悬停状态更深）
+            pressed_color = self._darken_color(btn_cfg['hover'], 0.85)
             btn.setStyleSheet(f"""
                 QPushButton {{
                     background-color: {btn_cfg['color']};
                     color: #ffffff;
                     border: none;
-                    padding: 6px 16px;
-                    border-radius: 2px;
-                    font-size: 13px;
+                    padding: 6px 18px;
+                    border-radius: 3px;
+                    font-size: 12px;
+                    font-weight: 500;
                 }}
                 QPushButton:hover {{
                     background-color: {btn_cfg['hover']};
+                }}
+                QPushButton:pressed {{
+                    background-color: {pressed_color};
                 }}
             """)
             btn.setShortcut(btn_cfg['shortcut'])
@@ -321,11 +384,20 @@ class EditorArea(QFrame):
 
         self.layout.addWidget(self.action_bar)
 
+    def _darken_color(self, hex_color, factor=0.85):
+        """将十六进制颜色加深（用于按下状态）"""
+        hex_color = hex_color.lstrip('#')
+        r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
+        r, g, b = int(r * factor), int(g * factor), int(b * factor)
+        return f"#{r:02x}{g:02x}{b:02x}"
+
     def load_image(self, path):
         filename = path.split("\\")[-1].split("/")[-1]
         self.tab_label.setText(f"🖼️ {filename}")
         self.viewer.load_image(path)
 
+# MARK: - Statistics View
+# MARK: - 统计视图
 class StatsView(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)

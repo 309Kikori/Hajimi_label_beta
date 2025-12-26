@@ -1,4 +1,14 @@
+//
+//  EditorView.swift
+//  Hajimi_Label
+//
+//  Created by shinonome on 17/12/2025.
+//
+
 import SwiftUI
+
+// MARK: - Editor View
+// MARK: - 编辑器视图
 
 /// The main editor view for reviewing images one by one.
 /// Provides image zooming, panning, and labeling functionality.

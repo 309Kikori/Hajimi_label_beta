@@ -1,4 +1,14 @@
+//
+//  SettingsView.swift
+//  Hajimi_Label
+//
+//  Created by shinonome on 17/12/2025.
+//
+
 import SwiftUI
+
+// MARK: - Settings View
+// MARK: - 设置视图
 
 /// The settings configuration view.
 /// Allows users to customize appearance and behavior.

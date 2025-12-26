@@ -1,6 +1,16 @@
+//
+//  SettingsModel.swift
+//  Hajimi_Label
+//
+//  Created by shinonome on 17/12/2025.
+//
+
 import Foundation
 import SwiftUI
 import Combine
+
+// MARK: - Settings Model
+// MARK: - 设置模型
 
 /// Manages application settings and persists them using UserDefaults.
 ///

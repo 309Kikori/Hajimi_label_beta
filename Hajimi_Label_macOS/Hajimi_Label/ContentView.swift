@@ -7,6 +7,9 @@
 
 import SwiftUI
 
+// MARK: - Content View
+// MARK: - 内容视图
+
 /// The root view of the application, orchestrating the overall layout.
 /// It uses a combination of Stacks and SplitViews to create a responsive interface.
 ///

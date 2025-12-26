@@ -1,7 +1,17 @@
+//
+//  OverviewViewModel.swift
+//  Hajimi_Label
+//
+//  Created by shinonome on 17/12/2025.
+//
+
 import Foundation
 import SwiftUI
 import Combine
 import QuickLookThumbnailing
+
+// MARK: - Overview Item Model
+// MARK: - 概览项目模型
 
 /// Represents a single item (image) on the overview canvas.
 /// Conforms to Identifiable for SwiftUI lists and Equatable for diffing.
@@ -47,6 +57,9 @@ struct OverviewItem: Identifiable, Equatable {
     }
 }
 
+// MARK: - Overview View Model
+// MARK: - 概览视图模型
+
 /// View model for the Overview mode.
 /// Manages the state of the infinite canvas, including item positions, selection, and thumbnail generation.
 ///
@@ -88,6 +101,38 @@ class OverviewViewModel: ObservableObject {
     @Published var multiSelectAnchor: CGPoint = .zero
     
     private var cancellables = Set<AnyCancellable>()
+    
+    // MARK: - Selection Helpers (from HajimiRef)
+    func calculateSelectionBounds() -> CGRect? {
+        let selectedItems = items.filter { selectedItemIds.contains($0.id) }
+        guard !selectedItems.isEmpty else { return nil }
+        
+        var minX: CGFloat = .greatestFiniteMagnitude
+        var minY: CGFloat = .greatestFiniteMagnitude
+        var maxX: CGFloat = -.greatestFiniteMagnitude
+        var maxY: CGFloat = -.greatestFiniteMagnitude
+        
+        for item in selectedItems {
+            let w = item.size.width * item.scale
+            let h = item.size.height * item.scale
+            
+            // 考虑当前的拖拽偏移
+            let posX = item.position.x + currentDragOffset.width
+            let posY = item.position.y + currentDragOffset.height
+            
+            let left = posX - w/2
+            let right = posX + w/2
+            let top = posY - h/2
+            let bottom = posY + h/2
+            
+            if left < minX { minX = left }
+            if right > maxX { maxX = right }
+            if top < minY { minY = top }
+            if bottom > maxY { maxY = bottom }
+        }
+        
+        return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+    }
     
     // MARK: - View Culling (Performance Optimization)
     // MARK: - 视图剔除（性能优化）
@@ -266,6 +311,9 @@ class OverviewViewModel: ObservableObject {
         let gap: CGFloat = 20
         let maxWidth: CGFloat = 2000 // Virtual width for the layout. (布局的虚拟宽度)
         
+        // Track actual content bounds for centering
+        var actualMaxX: CGFloat = 0
+        
         // Create a copy to modify.
         // 创建副本以进行修改。
         var updatedItems = items
@@ -294,12 +342,18 @@ class OverviewViewModel: ObservableObject {
             // 前进 X 位置。
             currentX += item.size.width + gap
             rowHeight = max(rowHeight, item.size.height)
+            
+            // Update bounds
+            if currentX > actualMaxX {
+                actualMaxX = currentX
+            }
         }
         
         // Center the whole cluster around (0,0).
         // 将整个集群以 (0,0) 为中心对齐。
         let totalHeight = currentY + rowHeight
-        let offsetX = maxWidth / 2
+        // Use actual width for centering, not the virtual maxWidth
+        let offsetX = actualMaxX / 2
         let offsetY = totalHeight / 2
         
         for i in 0..<updatedItems.count {

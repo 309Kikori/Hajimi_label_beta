@@ -1,3 +1,5 @@
+# MARK: - Module Documentation
+# MARK: - 模块文档
 """
 Hajimi Label - 图像标注审核工具
 
@@ -19,6 +21,8 @@ Hajimi Label - 图像标注审核工具
 - StatsView: 统计视图 (来自 ui.py)
 """
 
+# MARK: - Imports
+# MARK: - 导入模块
 import sys   # sys.argv: 命令行参数; sys.exit(): 退出程序; sys._MEIPASS: PyInstaller 临时目录
 import os    # os.path: 路径操作; os.listdir(): 列目录
 import json  # json.load/dump: JSON 读写
@@ -39,6 +43,8 @@ from PySide6.QtWidgets import (
     QLabel,          # 标签: 显示文本/图像
     QLineEdit,       # 单行文本输入框
     QCheckBox,       # 复选框
+    QPushButton,     # 按钮: 用于通知铃铛等交互元素
+    QSizePolicy,     # 尺寸策略: 控制组件的伸缩行为
 )
 
 from PySide6.QtCore import QFile, QTextStream, Qt
@@ -49,6 +55,8 @@ from overview import OverviewPage
 from localization import tr  # 国际化函数: tr("key") 返回当前语言的翻译
 
 
+# MARK: - Utility Functions
+# MARK: - 工具函数
 def resource_path(relative_path):
     """
     获取资源文件的绝对路径，兼容开发环境和 PyInstaller 打包环境。
@@ -69,6 +77,8 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 
+# MARK: - Settings Dialog
+# MARK: - 设置对话框
 class SettingsDialog(QDialog):
     """
     设置对话框，VS Code 风格。
@@ -104,9 +114,13 @@ class SettingsDialog(QDialog):
         self.search_bar.setStyleSheet("""
             QLineEdit {
                 background-color: #3c3c3c; color: #cccccc;
-                border: 1px solid #3c3c3c; padding: 5px; margin: 10px;
+                border: 1px solid #3c3c3c; padding: 6px 10px;
+                margin: 10px; border-radius: 6px;
             }
-            QLineEdit:focus { border: 1px solid #007acc; }
+            QLineEdit:focus { 
+                border: 1px solid #007acc;
+                background-color: #464646;
+            }
         """)
         self.layout.addWidget(self.search_bar)
         
@@ -161,15 +175,19 @@ class SettingsDialog(QDialog):
     def add_setting_row(self, label_text, widget):
         """添加一行设置项（标签 + 控件），统一样式"""
         label = QLabel(label_text)
-        label.setStyleSheet("color: #cccccc;")
+        label.setStyleSheet("color: #cccccc; font-size: 13px;")
         
         if isinstance(widget, QLineEdit):
             widget.setStyleSheet("""
                 QLineEdit {
                     background-color: #3c3c3c; color: #cccccc;
-                    border: 1px solid #3c3c3c; padding: 4px;
+                    border: 1px solid #3c3c3c; padding: 6px 10px;
+                    border-radius: 4px;
                 }
-                QLineEdit:focus { border: 1px solid #007acc; }
+                QLineEdit:focus { 
+                    border: 1px solid #007acc;
+                    background-color: #464646;
+                }
             """)
         
         self.form_layout.addRow(label, widget)
@@ -200,6 +218,8 @@ class SettingsDialog(QDialog):
         super().closeEvent(event)  # 调用父类完成关闭
 
 
+# MARK: - Main Window
+# MARK: - 主窗口
 class MainWindow(QMainWindow):
     """
     主窗口，VS Code 风格布局。
@@ -278,14 +298,74 @@ class MainWindow(QMainWindow):
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
         
+        # 左侧：状态标签
         self.status_label = QLabel(tr("ready"))
-        self.status_label.setObjectName("StatusLabel")  # 用于 QSS 选择器
+        self.status_label.setObjectName("StatusLabel")
         self.status_bar.addWidget(self.status_label)
         
-        # addPermanentWidget: 添加到状态栏右侧
+        # 左侧：错误/警告指示器（参考 VS Code）
+        self.error_warning_widget = QWidget()
+        self.error_warning_layout = QHBoxLayout(self.error_warning_widget)
+        self.error_warning_layout.setContentsMargins(10, 0, 10, 0)
+        self.error_warning_layout.setSpacing(8)
+        
+        # 错误图标 + 数字（使用字符）
+        self.error_icon = QLabel("✕")
+        self.error_icon.setStyleSheet("color: #f48771; font-weight: bold; font-size: 14px;")
+        self.error_count = QLabel("0")
+        self.error_count.setStyleSheet("color: white;")
+        
+        # 警告图标 + 数字（使用字符）
+        self.warning_icon = QLabel("⚠")
+        self.warning_icon.setStyleSheet("color: #cca700; font-weight: bold; font-size: 14px;")
+        self.warning_count = QLabel("0")
+        self.warning_count.setStyleSheet("color: white;")
+        
+        self.error_warning_layout.addWidget(self.error_icon)
+        self.error_warning_layout.addWidget(self.error_count)
+        self.error_warning_layout.addWidget(self.warning_icon)
+        self.error_warning_layout.addWidget(self.warning_count)
+        
+        # 设置鼠标悬停样式
+        self.error_warning_widget.setCursor(Qt.PointingHandCursor)
+        self.error_warning_widget.setToolTip("点击查看问题详情")
+        
+        self.status_bar.addWidget(self.error_warning_widget)
+        
+        # 左侧：统计信息
         self.stats_status_label = QLabel("")
         self.stats_status_label.setObjectName("StatusLabel")
-        self.status_bar.addPermanentWidget(self.stats_status_label)
+        self.status_bar.addWidget(self.stats_status_label)
+        
+        # 添加弹性空间（把右侧元素推到最右边）
+        spacer = QWidget()
+        spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.status_bar.addWidget(spacer)
+        
+        # 最右侧：通知铃铛（使用字符）
+        self.notification_btn = QPushButton("🔔")
+        self.notification_btn.setObjectName("NotificationButton")
+        self.notification_btn.setFixedSize(30, 22)
+        self.notification_btn.setCursor(Qt.PointingHandCursor)
+        self.notification_btn.setToolTip("通知")
+        self.notification_btn.setStyleSheet("""
+            QPushButton#NotificationButton {
+                background: transparent;
+                border: none;
+                color: white;
+                font-size: 16px;
+                padding: 0;
+            }
+            QPushButton#NotificationButton:hover {
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 3px;
+            }
+        """)
+        self.notification_btn.clicked.connect(self.show_notifications)
+        self.status_bar.addPermanentWidget(self.notification_btn)
+        
+        # 通知列表（存储通知消息）
+        self.notifications = []
         
         self.status_bar.setStyleSheet("background-color: #007acc; color: white;")
 
@@ -293,6 +373,7 @@ class MainWindow(QMainWindow):
         self.activity_bar.pageChanged.connect(self.switch_page)
         self.side_bar.folderOpened.connect(self.load_folder)
         self.side_bar.fileSelected.connect(self.load_file)
+        self.side_bar.btn_refresh.clicked.connect(self.refresh_folder)
         self.editor_area.decisionMade.connect(self.handle_decision)
 
         # 数据状态
@@ -304,6 +385,8 @@ class MainWindow(QMainWindow):
         self.load_stylesheet()
         self.apply_config()
 
+    # MARK: - Menu Setup
+    # MARK: - 菜单设置
     def setup_menu(self):
         """设置菜单栏"""
         menubar = self.menuBar()
@@ -325,6 +408,8 @@ class MainWindow(QMainWindow):
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
 
+    # MARK: - Folder Management
+    # MARK: - 文件夹管理
     def close_folder(self):
         """关闭文件夹，重置所有状态"""
         self.current_folder = ""
@@ -340,6 +425,8 @@ class MainWindow(QMainWindow):
         self.stats_status_label.setText("")
         self.setWindowTitle(tr("app_title"))
 
+    # MARK: - Styling
+    # MARK: - 样式管理
     def load_stylesheet(self):
         """加载外部 QSS 样式表"""
         style_path = resource_path("assets/style.qss")
@@ -352,6 +439,8 @@ class MainWindow(QMainWindow):
         else:
             print(f"Warning: Could not load stylesheet from {style_path}")
 
+    # MARK: - Page Navigation
+    # MARK: - 页面导航
     def switch_page(self, page_name):
         """
         切换内容页面。
@@ -384,6 +473,8 @@ class MainWindow(QMainWindow):
         self.activity_bar.btn_overview.setVisible(self.config.get("enable_overview", True))
         self.overview_page.update_config()
 
+    # MARK: - Image Loading
+    # MARK: - 图片加载
     def load_folder(self, folder_path):
         """
         加载文件夹中的图像文件。
@@ -401,11 +492,64 @@ class MainWindow(QMainWindow):
         folder_name = os.path.basename(folder_path)
         self.side_bar.set_files(self.files, self.results, folder_name)
         
-        self.status_label.setText(tr("loaded_images", len(self.files), folder_path))
+        # 添加加载通知
+        self.add_notification(f"已加载 {len(self.files)} 张图片：{folder_name}", "info")
+        self.status_label.setText(tr("ready"))
         self.update_stats_status()
         
         if self.config.get("enable_overview", True):
             self.overview_page.load_images(folder_path, self.files)
+
+    def refresh_folder(self):
+        """
+        刷新当前文件夹，重新加载文件列表。
+        
+        用于检测文件夹中新增或删除的图片文件。
+        """
+        if not self.current_folder:
+            self.add_notification("没有打开的文件夹", "warning")
+            return
+        
+        # 保存当前选中的文件
+        current_file = self.current_file
+        
+        # 重新扫描文件列表（不重新加载 overview，避免卡顿）
+        old_files = set(self.files)
+        self.files = [f for f in os.listdir(self.current_folder) 
+                      if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp'))]
+        new_files = set(self.files)
+        
+        # 检测变化
+        added = new_files - old_files
+        removed = old_files - new_files
+        
+        # 重新加载结果
+        self.load_results()
+        
+        # 更新侧边栏
+        folder_name = os.path.basename(self.current_folder)
+        self.side_bar.set_files(self.files, self.results, folder_name)
+        
+        # 更新统计
+        self.update_stats_status()
+        
+        # 尝试恢复之前选中的文件
+        if current_file and current_file in self.files:
+            self.load_file(current_file)
+        elif len(self.files) > 0:
+            # 如果之前的文件不存在了，选择第一个
+            self.load_file(self.files[0])
+        
+        # 显示刷新通知
+        if added or removed:
+            msg = f"文件夹已刷新"
+            if added:
+                msg += f"，新增 {len(added)} 个文件"
+            if removed:
+                msg += f"，删除 {len(removed)} 个文件"
+            self.add_notification(msg, "info")
+        else:
+            self.add_notification("文件夹已刷新，无变化", "info")
 
     def load_results(self):
         """从 JSON 加载已有的审核结果"""
@@ -439,6 +583,8 @@ class MainWindow(QMainWindow):
         status = self.results.get(filename, tr("unreviewed"))
         self.status_label.setText(tr("reviewing", filename, status))
 
+    # MARK: - Review Decision Handling
+    # MARK: - 审核决策处理
     def handle_decision(self, decision):
         """
         处理审核决定，保存结果并自动前进到下一张。
@@ -462,6 +608,8 @@ class MainWindow(QMainWindow):
         else:
             self.status_label.setText(tr("all_reviewed"))
 
+    # MARK: - Statistics
+    # MARK: - 统计功能
     def update_stats(self):
         """更新统计页面数据"""
         # set(): O(1) 查找; 字典推导式: 过滤只统计当前存在的文件
@@ -489,8 +637,182 @@ class MainWindow(QMainWindow):
         unreviewed = total_files - len(valid_results)
         
         self.stats_status_label.setText(tr("stats_status", total_files, passed, failed, invalid, unreviewed))
+        
+        # 更新错误/警告计数（示例：失败=错误，无效=警告）
+        self.error_count.setText(str(failed))
+        self.warning_count.setText(str(invalid))
+
+    # MARK: - Notification Management
+    # MARK: - 通知管理
+    def add_notification(self, message, level="info"):
+        """添加通知消息
+        
+        Args:
+            message: 通知内容
+            level: 通知级别 "info"/"warning"/"error"
+        """
+        self.notifications.append({"message": message, "level": level})
+        # 更新铃铛图标（如果有未读通知可以改变样式）
+        if len(self.notifications) > 0:
+            self.notification_btn.setStyleSheet("""
+                QPushButton#NotificationButton {
+                    background: transparent;
+                    border: none;
+                    color: #4daafc;
+                    font-size: 16px;
+                    padding: 0;
+                }
+                QPushButton#NotificationButton:hover {
+                    background: rgba(255, 255, 255, 0.1);
+                    border-radius: 3px;
+                }
+            """)
+    
+    def show_notifications(self):
+        """显示通知面板（VS Code 风格）"""
+        from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QScrollArea, QPushButton, QLabel
+        
+        # 创建通知面板对话框
+        dialog = QDialog(self)
+        dialog.setWindowTitle("通知")
+        dialog.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint)  # 无边框弹出窗口
+        dialog.resize(400, 300)
+        
+        # 定位到状态栏右下角
+        status_bar_pos = self.status_bar.mapToGlobal(self.status_bar.rect().bottomRight())
+        dialog.move(status_bar_pos.x() - dialog.width(), status_bar_pos.y() - dialog.height())
+        
+        # 主布局
+        layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        
+        # 头部
+        header = QWidget()
+        header.setStyleSheet("background-color: #2d2d2d; padding: 10px;")
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(10, 5, 10, 5)
+        
+        title = QLabel("通知")
+        title.setStyleSheet("color: #cccccc; font-weight: bold; font-size: 13px;")
+        header_layout.addWidget(title)
+        header_layout.addStretch()
+        
+        # 清除所有按钮
+        clear_btn = QPushButton("清除所有")
+        clear_btn.setStyleSheet("""
+            QPushButton {
+                background: transparent;
+                color: #cccccc;
+                border: none;
+                padding: 4px 8px;
+                font-size: 12px;
+            }
+            QPushButton:hover {
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 3px;
+            }
+        """)
+        clear_btn.clicked.connect(lambda: self.clear_notifications(dialog))
+        header_layout.addWidget(clear_btn)
+        
+        layout.addWidget(header)
+        
+        # 通知列表（滚动区域）
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; background-color: #252526; }")
+        
+        content = QWidget()
+        content.setStyleSheet("background-color: #252526;")
+        content_layout = QVBoxLayout(content)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(1)
+        
+        # 添加通知项
+        if not self.notifications:
+            no_notif = QLabel("暂无通知")
+            no_notif.setStyleSheet("color: #969696; padding: 20px; font-size: 13px;")
+            no_notif.setAlignment(Qt.AlignCenter)
+            content_layout.addWidget(no_notif)
+        else:
+            for notif in self.notifications:
+                notif_item = self.create_notification_item(notif)
+                content_layout.addWidget(notif_item)
+        
+        content_layout.addStretch()
+        scroll.setWidget(content)
+        layout.addWidget(scroll)
+        
+        # 应用样式
+        dialog.setStyleSheet("""
+            QDialog {
+                background-color: #252526;
+                border: 1px solid #2b2b2b;
+            }
+        """)
+        
+        dialog.exec()
+    
+    def create_notification_item(self, notif):
+        """创建单个通知项"""
+        item = QWidget()
+        item.setStyleSheet("""
+            QWidget {
+                background-color: #2d2d2d;
+                padding: 10px;
+            }
+            QWidget:hover {
+                background-color: #37373d;
+            }
+        """)
+        
+        layout = QHBoxLayout(item)
+        layout.setContentsMargins(10, 8, 10, 8)
+        
+        # 图标
+        icon_map = {
+            "info": ("ℹ️", "#59a4f9"),
+            "warning": ("⚠️", "#cca700"),
+            "error": ("✕", "#f14c4c")
+        }
+        icon_text, icon_color = icon_map.get(notif["level"], ("ℹ️", "#59a4f9"))
+        
+        icon = QLabel(icon_text)
+        icon.setStyleSheet(f"color: {icon_color}; font-size: 16px; font-weight: bold;")
+        icon.setFixedWidth(30)
+        layout.addWidget(icon)
+        
+        # 消息文本
+        message = QLabel(notif["message"])
+        message.setStyleSheet("color: #cccccc; font-size: 13px;")
+        message.setWordWrap(True)
+        layout.addWidget(message, 1)
+        
+        return item
+    
+    def clear_notifications(self, dialog):
+        """清除所有通知"""
+        self.notifications.clear()
+        # 恢复铃铛默认样式
+        self.notification_btn.setStyleSheet("""
+            QPushButton#NotificationButton {
+                background: transparent;
+                border: none;
+                color: white;
+                font-size: 16px;
+                padding: 0;
+            }
+            QPushButton#NotificationButton:hover {
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 3px;
+            }
+        """)
+        dialog.close()
 
 
+# MARK: - Application Entry Point
+# MARK: - 应用程序入口
 if __name__ == "__main__":
     # QApplication: Qt 程序入口，管理事件循环，必须在创建任何窗口前实例化
     app = QApplication(sys.argv)

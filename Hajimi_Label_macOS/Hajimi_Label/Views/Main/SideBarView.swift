@@ -1,4 +1,14 @@
+//
+//  SideBarView.swift
+//  Hajimi_Label
+//
+//  Created by shinonome on 17/12/2025.
+//
+
 import SwiftUI
+
+// MARK: - Sidebar View
+// MARK: - 侧边栏视图
 
 /// The sidebar view displaying the file explorer.
 /// Shows the current folder content and file status.
@@ -74,6 +84,9 @@ struct SideBarView: View {
         .background(Color(nsColor: .windowBackgroundColor))
     }
 }
+
+// MARK: - Status Icon
+// MARK: - 状态图标
 
 /// Helper view to display a status icon based on the review result.
 ///

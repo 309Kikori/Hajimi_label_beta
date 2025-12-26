@@ -1,4 +1,14 @@
+//
+//  CheckerboardView.swift
+//  Hajimi_Label
+//
+//  Created by shinonome on 17/12/2025.
+//
+
 import SwiftUI
+
+// MARK: - Checkerboard View
+// MARK: - 棋盘格视图
 
 /// A view that renders a checkerboard pattern.
 /// Commonly used as a background for images to indicate transparency.
