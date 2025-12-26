@@ -2,9 +2,9 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
     QFrame, QListWidget, QGraphicsView, QGraphicsScene, 
     QGraphicsPixmapItem, QSizePolicy, QFileDialog, QSplitter,
-    QListWidgetItem
+    QListWidgetItem, QLineEdit, QStackedLayout
 )
-from PySide6.QtCore import Qt, Signal, QSize, QRectF
+from PySide6.QtCore import Qt, Signal, QSize, QRectF, QEvent
 from PySide6.QtGui import QIcon, QPixmap, QAction, QBrush, QColor, QPainter
 import qtawesome as qta
 
@@ -16,6 +16,92 @@ ICON_COLOR_ACTIVE = '#ffffff'
 ICON_COLOR_PASS = '#4ec9b0'
 ICON_COLOR_FAIL = '#f14c4c'
 ICON_COLOR_WARNING = '#cca700'
+
+
+# MARK: - Command Center (搜索栏)
+class CommandCenter(QFrame):
+    """
+    VS Code 风格的顶部搜索栏组件（嵌入标题栏）。
+    
+    功能:
+    - 文件名筛选: 输入关键词实时筛选文件列表
+    - 交互: 未聚焦时居中显示，点击聚焦后左对齐
+    
+    信号:
+    - searchTextChanged(str): 搜索文本变化时发出
+    """
+    searchTextChanged = Signal(str)
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("CommandCenter")
+        self.setFixedWidth(400)
+        self.setFixedHeight(24)
+        
+        # 使用 StackedLayout 实现两种状态切换
+        self.stack_layout = QStackedLayout(self)
+        self.stack_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # --- 状态 1: 显示模式 (居中按钮) ---
+        self.display_btn = QPushButton()
+        self.display_btn.setObjectName("CommandDisplayBtn")
+        self.display_btn.setFlat(True)
+        self.display_btn.setCursor(Qt.ArrowCursor)
+        
+        # 设置图标和文字
+        search_icon = qta.icon('fa5s.search', color='#969696')
+        self.display_btn.setIcon(search_icon)
+        self.display_btn.setText(f" {tr('search_placeholder')}") # 加个空格增加间距
+        self.display_btn.clicked.connect(self.switch_to_edit)
+        
+        self.stack_layout.addWidget(self.display_btn)
+        
+        # --- 状态 2: 编辑模式 (左对齐输入框) ---
+        self.search_input = QLineEdit()
+        self.search_input.setObjectName("CommandInput")
+        self.search_input.setPlaceholderText(tr("search_placeholder"))
+        self.search_input.setFrame(False)
+        self.search_input.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.search_input.textChanged.connect(self.on_text_changed)
+        
+        # 安装事件过滤器以捕获焦点丢失
+        self.search_input.installEventFilter(self)
+        
+        # 使用 QAction 添加搜索图标到输入框左侧 (保持左对齐时的图标)
+        self.search_action = QAction(search_icon, '', self.search_input)
+        self.search_input.addAction(self.search_action, QLineEdit.LeadingPosition)
+        
+        # 清除按钮
+        self.clear_action = QAction(qta.icon('fa5s.times', color='#969696'), '', self.search_input)
+        self.clear_action.triggered.connect(self.clear_search)
+        self.clear_action.setVisible(False)
+        self.search_input.addAction(self.clear_action, QLineEdit.TrailingPosition)
+        
+        self.stack_layout.addWidget(self.search_input)
+        
+    def switch_to_edit(self):
+        """切换到编辑模式"""
+        self.stack_layout.setCurrentIndex(1)
+        self.search_input.setFocus()
+        
+    def eventFilter(self, obj, event):
+        """事件过滤器：处理输入框失去焦点"""
+        if obj == self.search_input and event.type() == QEvent.FocusOut:
+            # 如果内容为空，切换回显示模式
+            if not self.search_input.text():
+                self.stack_layout.setCurrentIndex(0)
+        return super().eventFilter(obj, event)
+    
+    def on_text_changed(self, text):
+        """处理搜索文本变化"""
+        self.clear_action.setVisible(len(text) > 0)
+        self.searchTextChanged.emit(text)
+    
+    def clear_search(self):
+        """清除搜索内容"""
+        self.search_input.clear()
+        self.search_input.setFocus() # 清除后保持焦点
+
 
 # MARK: - Activity Bar
 # MARK: - 活动栏
