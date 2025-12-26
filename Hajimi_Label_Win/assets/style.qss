@@ -227,7 +227,7 @@ QPushButton#WorkspaceHeader {
     font-size: 11px;
     font-weight: bold;
     text-align: left;
-    padding: 5px 10px; /* 统一内边距 */
+    padding: 5px 10px 5px 8px; /* 调整左侧内边距以适配图标 */
     qproperty-alignment: AlignLeft; /* Qt 属性对齐 */
 }
 

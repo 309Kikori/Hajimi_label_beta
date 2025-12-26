@@ -47,8 +47,9 @@ from PySide6.QtWidgets import (
     QSizePolicy,     # 尺寸策略: 控制组件的伸缩行为
 )
 
-from PySide6.QtCore import QFile, QTextStream, Qt
+from PySide6.QtCore import QFile, QTextStream, Qt, QSize
 from PySide6.QtGui import QAction, QIcon
+import qtawesome as qta
 
 from ui import ActivityBar, SideBar, EditorArea, StatsView
 from overview import OverviewPage
@@ -309,15 +310,17 @@ class MainWindow(QMainWindow):
         self.error_warning_layout.setContentsMargins(10, 0, 10, 0)
         self.error_warning_layout.setSpacing(8)
         
-        # 错误图标 + 数字（使用字符）
-        self.error_icon = QLabel("✕")
-        self.error_icon.setStyleSheet("color: #f48771; font-weight: bold; font-size: 14px;")
+        # 错误图标 + 数字（使用 QtAwesome）
+        self.error_icon = QLabel()
+        error_pixmap = qta.icon('fa5s.times-circle', color='#f48771').pixmap(14, 14)
+        self.error_icon.setPixmap(error_pixmap)
         self.error_count = QLabel("0")
         self.error_count.setStyleSheet("color: white;")
         
-        # 警告图标 + 数字（使用字符）
-        self.warning_icon = QLabel("⚠")
-        self.warning_icon.setStyleSheet("color: #cca700; font-weight: bold; font-size: 14px;")
+        # 警告图标 + 数字（使用 QtAwesome）
+        self.warning_icon = QLabel()
+        warning_pixmap = qta.icon('fa5s.exclamation-triangle', color='#cca700').pixmap(14, 14)
+        self.warning_icon.setPixmap(warning_pixmap)
         self.warning_count = QLabel("0")
         self.warning_count.setStyleSheet("color: white;")
         
@@ -342,8 +345,10 @@ class MainWindow(QMainWindow):
         spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.status_bar.addWidget(spacer)
         
-        # 最右侧：通知铃铛（使用字符）
-        self.notification_btn = QPushButton("🔔")
+        # 最右侧：通知铃铛（使用 QtAwesome）
+        self.notification_btn = QPushButton()
+        self.notification_btn.setIcon(qta.icon('fa5s.bell', color='white'))
+        self.notification_btn.setIconSize(QSize(16, 16))
         self.notification_btn.setObjectName("NotificationButton")
         self.notification_btn.setFixedSize(30, 22)
         self.notification_btn.setCursor(Qt.PointingHandCursor)
@@ -352,8 +357,6 @@ class MainWindow(QMainWindow):
             QPushButton#NotificationButton {
                 background: transparent;
                 border: none;
-                color: white;
-                font-size: 16px;
                 padding: 0;
             }
             QPushButton#NotificationButton:hover {
@@ -654,19 +657,7 @@ class MainWindow(QMainWindow):
         self.notifications.append({"message": message, "level": level})
         # 更新铃铛图标（如果有未读通知可以改变样式）
         if len(self.notifications) > 0:
-            self.notification_btn.setStyleSheet("""
-                QPushButton#NotificationButton {
-                    background: transparent;
-                    border: none;
-                    color: #4daafc;
-                    font-size: 16px;
-                    padding: 0;
-                }
-                QPushButton#NotificationButton:hover {
-                    background: rgba(255, 255, 255, 0.1);
-                    border-radius: 3px;
-                }
-            """)
+            self.notification_btn.setIcon(qta.icon('fa5s.bell', color='#4daafc'))
     
     def show_notifications(self):
         """显示通知面板（VS Code 风格）"""
@@ -772,14 +763,15 @@ class MainWindow(QMainWindow):
         
         # 图标
         icon_map = {
-            "info": ("ℹ️", "#59a4f9"),
-            "warning": ("⚠️", "#cca700"),
-            "error": ("✕", "#f14c4c")
+            "info": ('fa5s.info-circle', "#59a4f9"),
+            "warning": ('fa5s.exclamation-triangle', "#cca700"),
+            "error": ('fa5s.times-circle', "#f14c4c")
         }
-        icon_text, icon_color = icon_map.get(notif["level"], ("ℹ️", "#59a4f9"))
+        icon_name, icon_color = icon_map.get(notif["level"], ('fa5s.info-circle', "#59a4f9"))
         
-        icon = QLabel(icon_text)
-        icon.setStyleSheet(f"color: {icon_color}; font-size: 16px; font-weight: bold;")
+        icon = QLabel()
+        icon_pixmap = qta.icon(icon_name, color=icon_color).pixmap(16, 16)
+        icon.setPixmap(icon_pixmap)
         icon.setFixedWidth(30)
         layout.addWidget(icon)
         
@@ -795,19 +787,7 @@ class MainWindow(QMainWindow):
         """清除所有通知"""
         self.notifications.clear()
         # 恢复铃铛默认样式
-        self.notification_btn.setStyleSheet("""
-            QPushButton#NotificationButton {
-                background: transparent;
-                border: none;
-                color: white;
-                font-size: 16px;
-                padding: 0;
-            }
-            QPushButton#NotificationButton:hover {
-                background: rgba(255, 255, 255, 0.1);
-                border-radius: 3px;
-            }
-        """)
+        self.notification_btn.setIcon(qta.icon('fa5s.bell', color='white'))
         dialog.close()
 
 

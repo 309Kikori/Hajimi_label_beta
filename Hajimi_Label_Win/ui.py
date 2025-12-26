@@ -6,8 +6,16 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal, QSize, QRectF
 from PySide6.QtGui import QIcon, QPixmap, QAction, QBrush, QColor, QPainter
+import qtawesome as qta
 
 from localization import tr
+
+# QtAwesome 图标颜色配置
+ICON_COLOR = '#cccccc'
+ICON_COLOR_ACTIVE = '#ffffff'
+ICON_COLOR_PASS = '#4ec9b0'
+ICON_COLOR_FAIL = '#f14c4c'
+ICON_COLOR_WARNING = '#cca700'
 
 # MARK: - Activity Bar
 # MARK: - 活动栏
@@ -23,10 +31,10 @@ class ActivityBar(QFrame):
 
         # MARK: - Navigation Buttons (Top)
         # MARK: - 导航按钮（顶部）
-        # Using Unicode characters as icons
-        self.btn_review = self.create_button("Review", "👁️") # Eye or Picture
-        self.btn_overview = self.create_button("Overview", "🗺️") # Map
-        self.btn_stats = self.create_button("Statistics", "📊") # Chart
+        # Using QtAwesome icons for professional look
+        self.btn_review = self.create_button("Review", "fa5s.eye")  # 审核视图
+        self.btn_overview = self.create_button("Overview", "fa5s.th-large")  # 概览网格
+        self.btn_stats = self.create_button("Statistics", "fa5s.chart-bar")  # 统计图表
         
         self.layout.addWidget(self.btn_review)
         self.layout.addWidget(self.btn_overview)
@@ -36,7 +44,7 @@ class ActivityBar(QFrame):
         # MARK: - System Buttons (Bottom)
         # MARK: - 系统按钮（底部）
         # Settings Button at bottom
-        self.btn_settings = self.create_button("Settings", "⚙️")
+        self.btn_settings = self.create_button("Settings", "fa5s.cog")  # 设置齿轮
         self.layout.addWidget(self.btn_settings)
 
         self.btn_review.setChecked(True)
@@ -46,12 +54,14 @@ class ActivityBar(QFrame):
 
     # MARK: - Helper Methods
     # MARK: - 辅助方法
-    def create_button(self, name, text):
-        btn = QPushButton(text)
+    def create_button(self, name, icon_name):
+        btn = QPushButton()
         btn.setObjectName("ActivityButton")
         btn.setCheckable(True)
         btn.setFixedSize(48, 48)
         btn.setToolTip(tr(name.lower()))
+        btn.setIcon(qta.icon(icon_name, color=ICON_COLOR))
+        btn.setIconSize(QSize(24, 24))
         btn.clicked.connect(lambda: self.on_click(name, btn))
         return btn
 
@@ -92,7 +102,9 @@ class SideBar(QFrame):
         title_layout.addStretch()
         
         # Refresh Button
-        self.btn_refresh = QPushButton("⟳")
+        self.btn_refresh = QPushButton()
+        self.btn_refresh.setIcon(qta.icon('fa5s.sync-alt', color=ICON_COLOR))
+        self.btn_refresh.setIconSize(QSize(14, 14))
         self.btn_refresh.setObjectName("IconButton")
         self.btn_refresh.setToolTip(tr("refresh"))
         self.btn_refresh.setFixedSize(24, 24)
@@ -135,18 +147,22 @@ class SideBar(QFrame):
         
         # Workspace Folder Header (VS Code Style - Collapsible)
         if folder_name:
-            self.folder_header = QPushButton(f"▼ {folder_name.upper()}")
+            self.folder_name = folder_name.upper()  # 保存文件夹名称
+            self.folder_header = QPushButton(self.folder_name)
+            self.folder_header.setIcon(qta.icon('fa5s.chevron-down', color=ICON_COLOR))
+            self.folder_header.setIconSize(QSize(12, 12))
             self.folder_header.setObjectName("WorkspaceHeader")
             self.folder_header.setCheckable(True)
             self.folder_header.setChecked(True)  # Expanded by default
             self.folder_header.clicked.connect(self.toggle_folder_content)
+            self.folder_header.setLayoutDirection(Qt.LeftToRight)  # 确保图标在左侧
             self.content_layout.addWidget(self.folder_header)
         
         # File List
         self.file_list = QListWidget()
         self.file_list.currentItemChanged.connect(self.on_file_change)
-        self.content_layout.addWidget(self.file_list)
-        self.content_layout.addStretch()
+        self.file_list.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.content_layout.addWidget(self.file_list, 1)  # stretch factor 1, 让文件列表填充剩余空间
 
     def clear_content(self):
         while self.content_layout.count():
@@ -184,23 +200,25 @@ class SideBar(QFrame):
         is_expanded = self.folder_header.isChecked()
         self.file_list.setVisible(is_expanded)
         
-        # Update arrow icon
-        folder_name = self.folder_header.text()[2:]  # Remove arrow and space
+        # Update arrow icon with QtAwesome
         if is_expanded:
-            self.folder_header.setText(f"▼ {folder_name}")
+            self.folder_header.setIcon(qta.icon('fa5s.chevron-down', color=ICON_COLOR))
         else:
-            self.folder_header.setText(f"▶ {folder_name}")
+            self.folder_header.setIcon(qta.icon('fa5s.chevron-right', color=ICON_COLOR))
 
     def update_item_display(self, item, filename, status):
-        icon = "⚪" # Unreviewed
+        # 使用 QtAwesome 图标表示文件状态
         if status == "pass":
-            icon = "🟢"
+            icon = qta.icon('fa5s.check-circle', color=ICON_COLOR_PASS)
         elif status == "fail":
-            icon = "🔴"
+            icon = qta.icon('fa5s.times-circle', color=ICON_COLOR_FAIL)
         elif status == "invalid":
-            icon = "⚠️"
+            icon = qta.icon('fa5s.exclamation-triangle', color=ICON_COLOR_WARNING)
+        else:  # unreviewed
+            icon = qta.icon('fa5s.circle', color='#6e6e6e')
         
-        item.setText(f"  {icon} {filename}")
+        item.setIcon(icon)
+        item.setText(f"  {filename}")
 
     # MARK: - Event Handling
     # MARK: - 事件处理
@@ -393,7 +411,8 @@ class EditorArea(QFrame):
 
     def load_image(self, path):
         filename = path.split("\\")[-1].split("/")[-1]
-        self.tab_label.setText(f"🖼️ {filename}")
+        # 使用 QtAwesome 图标作为文件标签图标
+        self.tab_label.setText(f"  {filename}")
         self.viewer.load_image(path)
 
 # MARK: - Statistics View
