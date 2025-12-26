@@ -291,6 +291,21 @@ class MainWindow(QMainWindow):
         self.splitter.addWidget(self.content_stack)
         self.splitter.setStretchFactor(1, 1)  # 索引1(content)占据更多空间
         self.splitter.setHandleWidth(1)  # 细分割线，VS Code 风格
+        
+        # 侧边栏宽度配置
+        self.sidebar_default_width = 200  # 默认宽度
+        self.sidebar_max_width = 600  # 最大宽度上限
+        self.sidebar_min_collapse_width = 100  # 最小化触发宽度（低于此值自动隐藏）
+        self.sidebar_is_collapsed = False  # 侧边栏是否已最小化
+        
+        # 设置侧边栏的最大宽度
+        self.side_bar.setMaximumWidth(self.sidebar_max_width)
+        
+        # 设置初始宽度
+        self.splitter.setSizes([self.sidebar_default_width, 1000])
+        
+        # 监听分割器大小变化
+        self.splitter.splitterMoved.connect(self.on_splitter_moved)
 
         self.main_layout.addWidget(self.activity_bar)
         self.main_layout.addWidget(self.splitter)
@@ -442,6 +457,35 @@ class MainWindow(QMainWindow):
         else:
             print(f"Warning: Could not load stylesheet from {style_path}")
 
+    # MARK: - Splitter Management
+    # MARK: - 分割器管理
+    def on_splitter_moved(self, pos, index):
+        """
+        处理分割器拖动事件，实现侧边栏最小化触发逻辑。
+        当侧边栏宽度低于阈值时自动折叠，再次拖动时恢复。
+        """
+        sidebar_width = self.splitter.sizes()[0]
+        
+        if not self.sidebar_is_collapsed:
+            # 检查是否需要折叠（宽度低于最小化触发宽度）
+            if sidebar_width < self.sidebar_min_collapse_width:
+                self.sidebar_is_collapsed = True
+                self.side_bar.setVisible(False)
+                self.splitter.setSizes([0, self.splitter.sizes()[1]])
+        else:
+            # 已折叠状态下，检测用户是否在尝试展开
+            if pos > 10:  # 用户向右拖动超过10像素
+                self.sidebar_is_collapsed = False
+                self.side_bar.setVisible(True)
+                self.splitter.setSizes([self.sidebar_default_width, 1000])
+    
+    def expand_sidebar(self):
+        """展开侧边栏（如果已折叠）"""
+        if self.sidebar_is_collapsed:
+            self.sidebar_is_collapsed = False
+            self.side_bar.setVisible(True)
+            self.splitter.setSizes([self.sidebar_default_width, 1000])
+
     # MARK: - Page Navigation
     # MARK: - 页面导航
     def switch_page(self, page_name):
@@ -453,7 +497,8 @@ class MainWindow(QMainWindow):
         """
         if page_name == "Review":
             self.content_stack.setCurrentWidget(self.editor_area)
-            self.side_bar.setVisible(True)
+            # 点击Review图标时展开侧边栏（如果已折叠）
+            self.expand_sidebar()
         elif page_name == "Overview":
             self.content_stack.setCurrentWidget(self.overview_page)
             self.side_bar.setVisible(False)  # 隐藏侧边栏腾出空间

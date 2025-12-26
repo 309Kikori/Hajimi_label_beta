@@ -180,8 +180,7 @@ QPushButton#ActivityButton:pressed {
 /* --- Side Bar (Explorer) --- */
 QFrame#SideBar {
     background-color: #252526;
-    min-width: 220px;
-    max-width: 300px;
+    /* 宽度由代码控制，支持用户拖动调整 */
     border-right: 1px solid #2b2b2b; /* 更细腻的分割线 */
 }
 

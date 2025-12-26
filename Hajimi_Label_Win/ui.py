@@ -31,7 +31,6 @@ class ActivityBar(QFrame):
 
         # MARK: - Navigation Buttons (Top)
         # MARK: - 导航按钮（顶部）
-        # Using QtAwesome icons for professional look
         self.btn_review = self.create_button("Review", "fa5s.eye")  # 审核视图
         self.btn_overview = self.create_button("Overview", "fa5s.th-large")  # 概览网格
         self.btn_stats = self.create_button("Statistics", "fa5s.chart-bar")  # 统计图表
@@ -200,7 +199,7 @@ class SideBar(QFrame):
         is_expanded = self.folder_header.isChecked()
         self.file_list.setVisible(is_expanded)
         
-        # Update arrow icon with QtAwesome
+        # 更新箭头图标
         if is_expanded:
             self.folder_header.setIcon(qta.icon('fa5s.chevron-down', color=ICON_COLOR))
         else:
