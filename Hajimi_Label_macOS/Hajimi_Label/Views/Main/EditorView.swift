@@ -50,7 +50,6 @@ struct EditorView: View {
                         // Checkerboard Background for transparency indication.
                         // 用于指示透明度的棋盘格背景。
                         CheckerboardView()
-                            .opacity(0.5)
                         
                         // The Image itself.
                         // 图片本身。

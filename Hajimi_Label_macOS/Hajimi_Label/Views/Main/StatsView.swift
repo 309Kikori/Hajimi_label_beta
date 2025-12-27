@@ -56,6 +56,7 @@ struct StatsView: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(nsColor: .windowBackgroundColor)) // Use system window background color
     }
     
     /// Exports the review results to a JSON file.
