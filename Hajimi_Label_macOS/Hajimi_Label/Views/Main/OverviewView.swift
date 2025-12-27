@@ -461,32 +461,41 @@ struct OverviewView: View {
 }
 
 // MARK: - Selection Overlay (Handles Group Resizing)
+// MARK: - 选择覆盖层 (处理组调整大小)
+
 struct SelectionOverlay: View {
     @ObservedObject var viewModel: OverviewViewModel
     
-    // 拖拽状态
+    // Drag state.
+    // 拖拽状态。
     @State private var initialBounds: CGRect? = nil
     @State private var initialItems: [UUID: (pos: CGPoint, scale: CGFloat)] = [:]
     
     var body: some View {
         if let bounds = viewModel.calculateSelectionBounds() {
-            // 转换到屏幕坐标系进行绘制（因为 Overlay 在 ZStack 顶层，且 ZStack 已经应用了 offset/scale）
-            // 但这里我们直接在世界坐标系绘制，因为 SelectionOverlay 也是 ZStack 的子视图，
-            // 并且 ZStack 已经应用了 .offset 和 .scaleEffect。
-            // 所以 bounds (世界坐标) 可以直接使用。
+            // Draw in World Space directly.
+            // Since SelectionOverlay is a child of the ZStack which already applies .offset and .scaleEffect,
+            // we can use the bounds (in World Space) directly.
+            //
+            // 直接在世界坐标系中绘制。
+            // 因为 SelectionOverlay 是 ZStack 的子视图，而 ZStack 已经应用了 .offset 和 .scaleEffect，
+            // 所以我们可以直接使用 bounds（世界坐标）。
             
             ZStack {
-                // 包围盒边框
+                // Bounding box border.
+                // 包围盒边框。
                 Rectangle()
                     .stroke(Color.blue, style: StrokeStyle(lineWidth: 1.5 / viewModel.canvasScale, dash: [5 / viewModel.canvasScale]))
                     .frame(width: bounds.width, height: bounds.height)
                     .position(x: bounds.midX, y: bounds.midY)
                     .allowsHitTesting(false)
                 
-                // 8个控制手柄
+                // 8 Control Handles.
+                // 8 个控制手柄。
                 let handleSize = 10.0 / viewModel.canvasScale
                 
-                // 角落手柄
+                // Corner Handles.
+                // 角落手柄。
                 ForEach([
                     (UnitPoint.topLeading, CursorType.resizeNorthWestSouthEast),
                     (UnitPoint.topTrailing, CursorType.resizeNorthEastSouthWest),
@@ -518,7 +527,9 @@ struct SelectionOverlay: View {
                 if inside {
                     switch cursor {
                     case .resizeNorthWestSouthEast:
-                        NSCursor.crosshair.push() // macOS SwiftUI 暂时没有公开的 resize 游标，先用 crosshair 或自定义
+                        // macOS SwiftUI currently doesn't expose resize cursors, use crosshair or custom cursor.
+                        // macOS SwiftUI 暂时没有公开的 resize 游标，先用 crosshair 或自定义。
+                        NSCursor.crosshair.push()
                     case .resizeNorthEastSouthWest:
                         NSCursor.crosshair.push()
                     }
@@ -539,7 +550,8 @@ struct SelectionOverlay: View {
     }
     
     private func handleDrag(value: DragGesture.Value, anchor: UnitPoint, currentBounds: CGRect) {
-        // 1. 初始化状态
+        // 1. Initialize state.
+        // 1. 初始化状态。
         if initialBounds == nil {
             initialBounds = currentBounds
             for id in viewModel.selectedItemIds {
@@ -551,14 +563,18 @@ struct SelectionOverlay: View {
         
         guard let startBounds = initialBounds else { return }
         
-        // 2. 计算拖拽后的新包围盒
-        // value.translation 是屏幕像素，需要转为世界单位
+        // 2. Calculate new bounding box after drag.
+        // value.translation is in screen pixels, convert to world units.
+        //
+        // 2. 计算拖拽后的新包围盒。
+        // value.translation 是屏幕像素，需要转为世界单位。
         let deltaX = value.translation.width / viewModel.canvasScale
         let deltaY = value.translation.height / viewModel.canvasScale
         
         var newBounds = startBounds
         
-        // 根据锚点调整边界
+        // Adjust bounds based on anchor.
+        // 根据锚点调整边界。
         if anchor.x == 0 { // Left
             newBounds.origin.x += deltaX
             newBounds.size.width -= deltaX
@@ -573,8 +589,11 @@ struct SelectionOverlay: View {
             newBounds.size.height += deltaY
         }
         
-        // 3. 计算缩放比例
-        // 重新计算：基于固定锚点（对角点）
+        // 3. Calculate scale factor.
+        // Re-calculate based on fixed anchor point (diagonal point).
+        //
+        // 3. 计算缩放比例。
+        // 重新计算：基于固定锚点（对角点）。
         let fixedAnchorX = anchor.x == 0 ? startBounds.maxX : startBounds.minX
         let fixedAnchorY = anchor.y == 0 ? startBounds.maxY : startBounds.minY
         let fixedPoint = CGPoint(x: fixedAnchorX, y: fixedAnchorY)
@@ -591,16 +610,21 @@ struct SelectionOverlay: View {
         
         let scaleFactor = startDist > 0 ? currentDist / startDist : 1.0
         
-        // 4. 应用变换到所有选中项
+        // 4. Apply transform to all selected items.
+        // 4. 应用变换到所有选中项。
         for id in viewModel.selectedItemIds {
             guard let initial = initialItems[id],
                   let index = viewModel.items.firstIndex(where: { $0.id == id }) else { continue }
             
-            // 更新 Scale
+            // Update Scale.
+            // 更新 Scale。
             viewModel.items[index].scale = initial.scale * scaleFactor
             
-            // 更新 Position
-            // 新位置 = 固定点 + (旧位置 - 固定点) * 缩放因子
+            // Update Position.
+            // New Position = Fixed Point + (Old Position - Fixed Point) * Scale Factor.
+            //
+            // 更新 Position。
+            // 新位置 = 固定点 + (旧位置 - 固定点) * 缩放因子。
             let vecX = initial.pos.x - fixedPoint.x
             let vecY = initial.pos.y - fixedPoint.y
             
@@ -612,13 +636,16 @@ struct SelectionOverlay: View {
     }
 }
 
-// MARK: - Overview Item View - 简化版本
+// MARK: - Overview Item View - Simplified Version
+// MARK: - 概览项目视图 - 简化版本
+
 struct OverviewItemView_Optimized: View {
     @ObservedObject var viewModel: OverviewViewModel
     var item: OverviewItem
     let status: String?
     
-    // Local state for resize gesture
+    // Local state for resize gesture.
+    // 调整大小手势的本地状态。
     @State private var initialDragScale: CGFloat? = nil
     @State private var dragStartDistance: CGFloat = 0
     
@@ -626,7 +653,8 @@ struct OverviewItemView_Optimized: View {
         viewModel.selectedItemIds.contains(item.id)
     }
     
-    // 计算显示位置（包含拖拽偏移）
+    // Calculate display position (including drag offset).
+    // 计算显示位置（包含拖拽偏移）。
     private var displayPosition: CGPoint {
         let currentOffset = isSelected ? viewModel.currentDragOffset : .zero
         return CGPoint(
@@ -635,7 +663,8 @@ struct OverviewItemView_Optimized: View {
         )
     }
     
-    // 恒定屏幕空间尺寸
+    // Constant screen space size.
+    // 恒定屏幕空间尺寸。
     private var handleSize: CGFloat {
         let totalScale = max(item.scale * viewModel.canvasScale, 0.01)
         return 12.0 / totalScale
@@ -653,7 +682,8 @@ struct OverviewItemView_Optimized: View {
     
     var body: some View {
         ZStack {
-            // 1. Image Layer (Centered at position)
+            // 1. Image Layer (Centered at position).
+            // 1. 图片层（以位置为中心）。
             ZStack {
                 if let nsImage = item.thumbnail {
                     Image(nsImage: nsImage)
@@ -671,7 +701,8 @@ struct OverviewItemView_Optimized: View {
                         .overlay(ProgressView())
                 }
                 
-                // 选中边框
+                // Selection border.
+                // 选中边框。
                 if isSelected {
                     RoundedRectangle(cornerRadius: 4)
                         .stroke(Color.blue, lineWidth: borderWidth)
@@ -680,7 +711,8 @@ struct OverviewItemView_Optimized: View {
             }
             .frame(width: item.size.width, height: item.size.height)
             
-            // 2. Status Indicator (Overlay, Top-Left)
+            // 2. Status Indicator (Overlay, Top-Left).
+            // 2. 状态指示器（覆盖层，左上角）。
             if let status = status {
                 Text(NSLocalizedString(status, comment: ""))
                     .font(.caption)
@@ -692,7 +724,8 @@ struct OverviewItemView_Optimized: View {
                     .offset(y: -item.size.height/2 - 15)
             }
             
-            // 3. Filename (Overlay, Bottom)
+            // 3. Filename (Overlay, Bottom).
+            // 3. 文件名（覆盖层，底部）。
             Text(item.fileURL.lastPathComponent)
                 .font(.caption)
                 .foregroundColor(.primary)
@@ -704,7 +737,8 @@ struct OverviewItemView_Optimized: View {
         }
         .scaleEffect(item.scale)
         .contentShape(Rectangle())
-        // 单击选中
+        // Tap to select.
+        // 单击选中。
         .onTapGesture {
             if NSEvent.modifierFlags.contains(.shift) {
                 if isSelected {
@@ -716,24 +750,30 @@ struct OverviewItemView_Optimized: View {
                 viewModel.selectedItemIds = [item.id]
             }
         }
-        // 拖拽移动
+        // Drag to move.
+        // 拖拽移动。
         .gesture(
-            DragGesture(minimumDistance: 5, coordinateSpace: .named("Canvas")) // 使用 Canvas 坐标系
+            DragGesture(minimumDistance: 5, coordinateSpace: .named("Canvas")) // Use Canvas coordinate space. (使用 Canvas 坐标系)
                 .onChanged { value in
-                    // 如果拖拽的是未选中的图片，先选中它
+                    // If dragging an unselected image, select it first.
+                    // 如果拖拽的是未选中的图片，先选中它。
                     if !isSelected {
                         viewModel.selectedItemIds = [item.id]
                     }
                     
-                    // 更新拖拽偏移
-                    // value.translation 是屏幕像素单位，需要除以 canvasScale 转换为世界坐标单位
+                    // Update drag offset.
+                    // value.translation is in screen pixels, divide by canvasScale to convert to world coordinates.
+                    //
+                    // 更新拖拽偏移。
+                    // value.translation 是屏幕像素单位，需要除以 canvasScale 转换为世界坐标单位。
                     viewModel.currentDragOffset = CGSize(
                         width: value.translation.width / viewModel.canvasScale,
                         height: value.translation.height / viewModel.canvasScale
                     )
                 }
                 .onEnded { value in
-                    // 提交移动
+                    // Commit move.
+                    // 提交移动。
                     let finalOffset = CGSize(
                         width: value.translation.width / viewModel.canvasScale,
                         height: value.translation.height / viewModel.canvasScale

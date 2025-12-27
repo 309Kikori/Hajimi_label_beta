@@ -96,13 +96,16 @@ class OverviewViewModel: ObservableObject {
     /// 交互过程中的临时拖动偏移量。
     @Published var currentDragOffset: CGSize = .zero
     
-    // [交互状态] 多选缩放因子和锚点
+    // [Interaction State] Multi-selection scale factor and anchor point.
+    // [交互状态] 多选缩放因子和锚点。
     @Published var multiSelectScaleFactor: CGFloat = 1.0
     @Published var multiSelectAnchor: CGPoint = .zero
     
     private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Selection Helpers (from HajimiRef)
+    // MARK: - 选择辅助方法 (来自 HajimiRef)
+    
     func calculateSelectionBounds() -> CGRect? {
         let selectedItems = items.filter { selectedItemIds.contains($0.id) }
         guard !selectedItems.isEmpty else { return nil }
@@ -149,10 +152,10 @@ class OverviewViewModel: ObservableObject {
     /// - Returns: An array of items that intersect with the viewport. (与视口相交的项目数组)
     func visibleItems(in viewportSize: CGSize) -> [OverviewItem] {
         // Calculate visible area in World Space (coordinate system of the items).
-        // World Coordinate = (Screen Coordinate - Offset) / Scale
+        // World Coordinate = Screen Coordinate / Scale - Offset
         //
         // 计算世界空间（项目的坐标系）中的可见区域。
-        // 世界坐标 = (屏幕坐标 - 偏移量) / 缩放比例
+        // 世界坐标 = 屏幕坐标 / 缩放比例 - 偏移量
         
         let margin: CGFloat = 600 // Extra margin to prevent items from "popping" in at the edges. (额外边距，防止项目在边缘突然出现)
         
