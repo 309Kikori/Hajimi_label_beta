@@ -66,7 +66,7 @@ class AppModel: ObservableObject {
     
     /// [Internal] All files in the current folder (unfiltered).
     /// [内部] 当前文件夹中的所有文件（未过滤）。
-    private var allFiles: [URL] = []
+    var allFiles: [URL] = []
     
     /// Array of URLs for all image files in the current folder (filtered by search text).
     /// Sorted lexicographically by filename for consistent ordering.

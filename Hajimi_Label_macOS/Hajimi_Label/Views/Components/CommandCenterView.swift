@@ -35,13 +35,14 @@ struct CommandCenterView: View {
     @State private var isOpen = false
     @State private var selectedIndex = 0
     @State private var activeOption: CommandOption = .goToFile
+    @State private var searchText = ""
     
     private var displayFiles: [URL] {
-        if appModel.searchText.isEmpty {
-            return Array(appModel.files.prefix(30))
+        if searchText.isEmpty {
+            return Array(appModel.allFiles.prefix(30))
         }
-        return appModel.files.filter {
-            $0.lastPathComponent.localizedCaseInsensitiveContains(appModel.searchText)
+        return appModel.allFiles.filter {
+            $0.lastPathComponent.localizedCaseInsensitiveContains(searchText)
         }.prefix(30).map { $0 }
     }
     
@@ -53,7 +54,7 @@ struct CommandCenterView: View {
                 .foregroundColor(Color(nsColor: .tertiaryLabelColor))
             
             if isOpen {
-                TextField("Search files...", text: $appModel.searchText)
+                TextField("Search files...", text: $searchText)
                     .textFieldStyle(.plain)
                     .font(.system(size: 13))
                     .onSubmit {
@@ -73,9 +74,9 @@ struct CommandCenterView: View {
                 .buttonStyle(.plain)
             }
             
-            if !appModel.searchText.isEmpty {
+            if !searchText.isEmpty {
                 Button(action: {
-                    appModel.searchText = ""
+                    searchText = ""
                     selectedIndex = 0
                 }) {
                     Image(systemName: "xmark.circle.fill")
@@ -98,7 +99,7 @@ struct CommandCenterView: View {
                     .offset(y: 40)
             }
         }
-        .onChange(of: appModel.searchText) { _, _ in
+        .onChange(of: searchText) { _, _ in
             selectedIndex = 0
         }
         .onAppear {
@@ -213,7 +214,7 @@ struct CommandCenterView: View {
     
     private func close() {
         isOpen = false
-        appModel.searchText = ""
+        searchText = ""
         selectedIndex = 0
     }
 }
