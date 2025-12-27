@@ -2,6 +2,26 @@ import Foundation
 import SwiftUI
 import Combine
 
+// MARK: - Notification Types
+// MARK: - 通知类型
+
+/// Notification level enumeration.
+/// 通知级别枚举。
+enum NotificationLevel: String {
+    case info
+    case warning
+    case error
+}
+
+/// Notification item structure.
+/// 通知项结构体。
+struct NotificationItem: Identifiable {
+    let id = UUID()
+    let message: String
+    let level: NotificationLevel
+    let timestamp = Date()
+}
+
 // MARK: - Application Tab Enumeration
 // MARK: - 应用标签页枚举
 
@@ -73,6 +93,10 @@ class AppModel: ObservableObject {
     /// 错误消息，用于向用户显示操作失败的原因。
     /// Optional 类型，没有错误时为 nil。
     @Published var errorMessage: String?
+
+    /// List of notifications.
+    /// 通知列表。
+    @Published var notifications: [NotificationItem] = []
     
     // MARK: - Computed Properties
     // MARK: - 计算属性
@@ -111,6 +135,22 @@ class AppModel: ObservableObject {
         return (total, passed, failed, invalid, unreviewed)
     }
     
+    // MARK: - Notification Management
+    // MARK: - 通知管理
+    
+    /// Add a notification.
+    /// 添加通知。
+    func addNotification(_ message: String, level: NotificationLevel = .info) {
+        let notification = NotificationItem(message: message, level: level)
+        notifications.append(notification)
+    }
+    
+    /// Clear all notifications.
+    /// 清除所有通知。
+    func clearNotifications() {
+        notifications.removeAll()
+    }
+
     // MARK: - File Operations
     // MARK: - 文件操作
     
@@ -177,7 +217,10 @@ class AppModel: ObservableObject {
                 } else {
                     // Permission failed, but try loading anyway (might work for non-sandboxed builds).
                     // 权限获取失败，但仍然尝试加载（对于非沙盒应用或用户自己的文件夹，可能不需要此权限）。
-                    self.errorMessage = "Failed to obtain access permissions for the selected folder."
+                    let msg = "Failed to obtain access permissions for the selected folder."
+                    self.errorMessage = msg
+                    self.addNotification(msg, level: .error)
+                    
                     self.currentFolder = url
                     loadFiles(from: url)
                     ensureResultsFileExists()
@@ -216,9 +259,17 @@ class AppModel: ObservableObject {
             if !files.isEmpty {
                 selectedFile = files.first
             }
+            
+            // Add notification.
+            // 添加通知。
+            let folderName = url.lastPathComponent
+            addNotification("Loaded \(files.count) images: \(folderName)", level: .info)
+            
         } catch {
             print("Error loading files: \(error)")
             // Ideally, we should set errorMessage here too.
+            self.errorMessage = "Failed to load files: \(error.localizedDescription)"
+            addNotification("Failed to load files: \(error.localizedDescription)", level: .error)
         }
     }
     
@@ -261,7 +312,9 @@ class AppModel: ObservableObject {
             // Update UI on the main thread since this might be called from a background context.
             // 在主线程上更新 UI，因为此方法可能从后台上下文调用。
             DispatchQueue.main.async {
-                self.errorMessage = "Failed to save results: \(error.localizedDescription)"
+                let msg = "Failed to save results: \(error.localizedDescription)"
+                self.errorMessage = msg
+                self.addNotification(msg, level: .error)
             }
         }
     }
@@ -312,7 +365,9 @@ class AppModel: ObservableObject {
             } catch {
                 print("Error creating review_results.json: \(error)")
                 DispatchQueue.main.async {
-                    self.errorMessage = "Failed to create review_results.json: \(error.localizedDescription)"
+                    let msg = "Failed to create review_results.json: \(error.localizedDescription)"
+                    self.errorMessage = msg
+                    self.addNotification(msg, level: .error)
                 }
             }
         }
