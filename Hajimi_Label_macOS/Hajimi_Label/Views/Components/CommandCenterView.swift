@@ -41,8 +41,23 @@ struct CommandCenterView: View {
         if searchText.isEmpty {
             return Array(appModel.allFiles.prefix(30))
         }
-        return appModel.allFiles.filter {
-            $0.lastPathComponent.localizedCaseInsensitiveContains(searchText)
+        // Fuzzy search logic
+        return appModel.allFiles.filter { url in
+            let filename = url.lastPathComponent.lowercased()
+            let query = searchText.lowercased()
+            
+            // 1. Exact match or substring match (priority)
+            if filename.contains(query) { return true }
+            
+            // 2. Fuzzy match (characters in order)
+            var remainder = query[...]
+            for char in filename {
+                if let first = remainder.first, char == first {
+                    remainder.removeFirst()
+                    if remainder.isEmpty { return true }
+                }
+            }
+            return false
         }.prefix(30).map { $0 }
     }
     
@@ -97,18 +112,39 @@ struct CommandCenterView: View {
             if isOpen {
                 dropdownPanel
                     .offset(y: 40)
+                    .zIndex(100) // Ensure it's on top
             }
         }
+        .zIndex(100) // Ensure the search bar itself is high in z-index
         .onChange(of: searchText) { _, _ in
             selectedIndex = 0
         }
         .onAppear {
-            // ESC 键关闭
+            // Global Event Monitor for Navigation
             NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-                if event.keyCode == 53 && self.isOpen { // ESC key
-                    DispatchQueue.main.async {
-                        self.close()
+                guard self.isOpen else { return event }
+                
+                switch event.keyCode {
+                case 53: // ESC
+                    DispatchQueue.main.async { self.close() }
+                    return nil
+                case 126: // Up Arrow
+                    if selectedIndex > 0 {
+                        selectedIndex -= 1
                     }
+                    return nil
+                case 125: // Down Arrow
+                    if selectedIndex < displayFiles.count - 1 {
+                        selectedIndex += 1
+                    }
+                    return nil
+                case 36: // Enter
+                    if !displayFiles.isEmpty {
+                        selectFile(displayFiles[selectedIndex])
+                        return nil
+                    }
+                default:
+                    break
                 }
                 return event
             }
@@ -119,69 +155,105 @@ struct CommandCenterView: View {
     
     private var dropdownPanel: some View {
         VStack(spacing: 0) {
-            // 命令选项
-            VStack(spacing: 2) {
-                ForEach(CommandOption.allCases) { option in
-                    Button(action: { activeOption = option }) {
-                        HStack(spacing: 8) {
-                            Image(systemName: option.icon)
-                                .font(.system(size: 11))
-                                .foregroundColor(activeOption == option ? .accentColor : .secondary)
-                            Text(option.rawValue)
-                                .font(.system(size: 13, weight: activeOption == option ? .semibold : .regular))
-                                .foregroundColor(activeOption == option ? .primary : .secondary)
-                            Spacer()
+            // 命令选项 (仅当未搜索时显示)
+            if searchText.isEmpty {
+                VStack(spacing: 2) {
+                    ForEach(CommandOption.allCases) { option in
+                        Button(action: { activeOption = option }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: option.icon)
+                                    .font(.system(size: 11))
+                                    .foregroundColor(activeOption == option ? .accentColor : .secondary)
+                                Text(option.rawValue)
+                                    .font(.system(size: 13, weight: activeOption == option ? .semibold : .regular))
+                                    .foregroundColor(activeOption == option ? .primary : .secondary)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(activeOption == option ? Color.accentColor.opacity(0.12) : Color.clear)
                         }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(activeOption == option ? Color.accentColor.opacity(0.12) : Color.clear)
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
+                .background(Color(nsColor: .windowBackgroundColor))
+                
+                Divider()
             }
-            .background(Color(nsColor: .windowBackgroundColor))
-            
-            Divider()
             
             // 文件列表
-            if displayFiles.isEmpty {
+            if appModel.allFiles.isEmpty {
                 VStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass")
+                    Image(systemName: "folder")
                         .font(.system(size: 24))
                         .foregroundColor(.secondary)
-                    Text("No files found")
+                    Text("No folder opened")
                         .font(.system(size: 13))
                         .foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 40)
+            } else if displayFiles.isEmpty {
+                VStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 24))
+                        .foregroundColor(.secondary)
+                    Text("No matching files")
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
+                    Text("Searched \(appModel.allFiles.count) files")
+                        .font(.system(size: 10))
+                        .foregroundColor(Color(nsColor: .tertiaryLabelColor))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 40)
             } else {
-                ScrollView {
-                    VStack(spacing: 1) {
-                        ForEach(Array(displayFiles.enumerated()), id: \.element) { index, fileURL in
-                            Button(action: { selectFile(fileURL) }) {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "doc.text")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.secondary)
-                                    Text(fileURL.lastPathComponent)
-                                        .font(.system(size: 13))
-                                        .foregroundColor(.primary)
-                                        .lineLimit(1)
-                                    Spacer()
+                VStack(spacing: 0) {
+                    HStack {
+                        Text("Found \(displayFiles.count) matches")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                    .background(Color(nsColor: .controlBackgroundColor))
+                    
+                    // Use VStack directly for small number of items to ensure visibility
+                    // If list is long, ScrollView is fine, but let's be safe with frame
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            ForEach(Array(displayFiles.enumerated()), id: \.element) { index, fileURL in
+                                Button(action: { selectFile(fileURL) }) {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "doc.text")
+                                            .font(.system(size: 12))
+                                            .foregroundColor(selectedIndex == index ? .white : .secondary)
+                                        Text(fileURL.lastPathComponent)
+                                            .font(.system(size: 13))
+                                            .foregroundColor(selectedIndex == index ? .white : .primary)
+                                            .lineLimit(1)
+                                        Spacer()
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .fill(selectedIndex == index ? Color.accentColor : Color.clear)
+                                            .padding(.horizontal, 4)
+                                    )
                                 }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 7)
-                                .background(selectedIndex == index ? Color.accentColor.opacity(0.18) : Color.clear)
-                            }
-                            .buttonStyle(.plain)
-                            .onHover { hovering in
-                                if hovering { selectedIndex = index }
+                                .buttonStyle(.plain)
+                                .onHover { hovering in
+                                    if hovering { selectedIndex = index }
+                                }
+                                .id(index) // For ScrollViewReader if needed later
                             }
                         }
+                        .padding(.vertical, 4)
                     }
+                    .frame(height: min(CGFloat(displayFiles.count * 32 + 10), 320)) // Dynamic height
                 }
-                .frame(maxHeight: 320)
             }
             
             // 底部关闭按钮

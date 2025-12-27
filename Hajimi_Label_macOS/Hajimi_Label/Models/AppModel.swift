@@ -66,7 +66,7 @@ class AppModel: ObservableObject {
     
     /// [Internal] All files in the current folder (unfiltered).
     /// [内部] 当前文件夹中的所有文件（未过滤）。
-    var allFiles: [URL] = []
+    @Published var allFiles: [URL] = []
     
     /// Array of URLs for all image files in the current folder (filtered by search text).
     /// Sorted lexicographically by filename for consistent ordering.
@@ -303,24 +303,27 @@ class AppModel: ObservableObject {
             
             // Filter and sort the files.
             // 过滤并排序文件。
-            self.allFiles = fileURLs.filter { url in
+            let sortedFiles = fileURLs.filter { url in
                 imageExtensions.contains(url.pathExtension.lowercased())
             }.sorted(by: { $0.lastPathComponent < $1.lastPathComponent })
             
-            // Apply current search filter.
-            // 应用当前搜索过滤。
-            filterFiles()
-            
-            // Automatically select the first file if the list is not empty.
-            // 如果列表不为空，自动选中第一个文件。
-            if !files.isEmpty {
-                selectedFile = files.first
+            DispatchQueue.main.async {
+                self.allFiles = sortedFiles
+                // Apply current search filter.
+                // 应用当前搜索过滤。
+                self.filterFiles()
+                
+                // Automatically select the first file if the list is not empty.
+                // 如果列表不为空，自动选中第一个文件。
+                if !self.files.isEmpty {
+                    self.selectedFile = self.files.first
+                }
+                
+                // Add notification.
+                // 添加通知。
+                let folderName = url.lastPathComponent
+                self.addNotification("Loaded \(self.files.count) images: \(folderName)", level: .info)
             }
-            
-            // Add notification.
-            // 添加通知。
-            let folderName = url.lastPathComponent
-            addNotification("Loaded \(files.count) images: \(folderName)", level: .info)
             
         } catch {
             print("Error loading files: \(error)")
