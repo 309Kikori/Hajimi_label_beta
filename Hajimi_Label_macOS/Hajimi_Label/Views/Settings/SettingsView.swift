@@ -25,6 +25,15 @@ struct SettingsView: View {
             // Appearance Section
             // 外观部分
             Section(header: Text(NSLocalizedString("appearance", comment: "Settings section header for appearance"))) {
+                // Theme Picker
+                // 主题选择器
+                Picker(NSLocalizedString("theme", comment: "Theme setting label"), selection: $settings.appTheme) {
+                    ForEach(AppTheme.allCases) { theme in
+                        Text(theme.localizedName).tag(theme)
+                    }
+                }
+                .pickerStyle(SegmentedPickerStyle()) // Use segmented control for better UX
+                
                 // Grid Size Input
                 // 网格大小输入
                 TextField(NSLocalizedString("grid_size", comment: "Grid size setting label"), value: $settings.gridSize, formatter: NumberFormatter())
@@ -61,6 +70,7 @@ struct SettingsView: View {
         }
         .padding()
         .frame(maxWidth: 500) // Limit width for better readability on large screens. (限制宽度以在宽屏上获得更好的可读性)
+        .background(Color(nsColor: .windowBackgroundColor)) // Ensure correct background in Light Mode
     }
 }
 

@@ -9,6 +9,36 @@ import Foundation
 import SwiftUI
 import Combine
 
+// MARK: - App Theme Enum
+// MARK: - 应用主题枚举
+
+/// Represents the available theme options for the application.
+///
+/// 表示应用程序可用的主题选项。
+enum AppTheme: String, CaseIterable, Identifiable {
+    case system = "system"
+    case light = "light"
+    case dark = "dark"
+    
+    var id: String { self.rawValue }
+    
+    var localizedName: String {
+        switch self {
+        case .system: return NSLocalizedString("theme_system", comment: "System theme")
+        case .light: return NSLocalizedString("theme_light", comment: "Light theme")
+        case .dark: return NSLocalizedString("theme_dark", comment: "Dark theme")
+        }
+    }
+    
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: return nil
+        case .light: return .light
+        case .dark: return .dark
+        }
+    }
+}
+
 // MARK: - Settings Model
 // MARK: - 设置模型
 
@@ -53,6 +83,13 @@ class SettingsModel: ObservableObject {
     /// 启用/禁用概览功能的开关。
     /// 使用键 "enableOverview" 进行持久化。
     @AppStorage("enableOverview") var enableOverview: Bool = true
+    
+    /// The application theme preference.
+    /// Persisted with key "appTheme".
+    ///
+    /// 应用程序主题偏好。
+    /// 使用键 "appTheme" 进行持久化。
+    @AppStorage("appTheme") var appTheme: AppTheme = .system
     
     // MARK: - Computed Colors
     // MARK: - 计算颜色

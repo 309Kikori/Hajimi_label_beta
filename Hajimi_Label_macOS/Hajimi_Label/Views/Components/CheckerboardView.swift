@@ -16,8 +16,16 @@ import SwiftUI
 /// 渲染棋盘格图案的视图。
 /// 通常用作图片背景以指示透明度。
 struct CheckerboardView: View {
+    @Environment(\.colorScheme) var colorScheme
+
     var body: some View {
         GeometryReader { geometry in
+            // In Light Mode, provide a white background.
+            // 在浅色模式下，提供白色背景。
+            if colorScheme == .light {
+                Color.white
+            }
+            
             // Draw the pattern using a Path.
             // 使用 Path 绘制图案。
             Path { path in
@@ -40,7 +48,7 @@ struct CheckerboardView: View {
                     }
                 }
             }
-            .fill(Color.gray.opacity(0.2)) // Fill with a semi-transparent gray. (填充半透明灰色)
+            .fill(colorScheme == .light ? Color.gray.opacity(0.25) : Color.gray.opacity(0.2)) // Fill with a semi-transparent gray. (填充半透明灰色)
         }
     }
 }

@@ -25,3 +25,7 @@
 "no_file_selected" = "未选择文件";
 "status_ready" = "就绪";
 "auto_arrange" = "自动排列";
+"theme" = "主题";
+"theme_system" = "跟随系统";
+"theme_light" = "浅色模式";
+"theme_dark" = "深色模式";

@@ -2,6 +2,26 @@ import Foundation
 import SwiftUI
 import Combine
 
+// MARK: - Notification Types
+// MARK: - 通知类型
+
+/// Notification level enumeration.
+/// 通知级别枚举。
+enum NotificationLevel: String {
+    case info
+    case warning
+    case error
+}
+
+/// Notification item structure.
+/// 通知项结构体。
+struct NotificationItem: Identifiable {
+    let id = UUID()
+    let message: String
+    let level: NotificationLevel
+    let timestamp = Date()
+}
+
 // MARK: - Application Tab Enumeration
 // MARK: - 应用标签页枚举
 
@@ -73,6 +93,18 @@ class AppModel: ObservableObject {
     /// 错误消息，用于向用户显示操作失败的原因。
     /// Optional 类型，没有错误时为 nil。
     @Published var errorMessage: String?
+
+    /// List of notifications.
+    /// 通知列表。
+    @Published var notifications: [NotificationItem] = []
+    
+    /// Temporary status message to display in the status bar.
+    /// 状态栏显示的临时状态消息。
+    @Published var statusMessage: String?
+    
+    /// Timer to clear the status message.
+    /// 清除状态消息的计时器。
+    private var statusMessageTimer: Timer?
     
     // MARK: - Computed Properties
     // MARK: - 计算属性
@@ -111,6 +143,55 @@ class AppModel: ObservableObject {
         return (total, passed, failed, invalid, unreviewed)
     }
     
+    // MARK: - Notification Management
+    // MARK: - 通知管理
+    
+    /// Add a notification.
+    /// 添加通知。
+    func addNotification(_ message: String, level: NotificationLevel = .info) {
+        // Deduplicate: Check if the last notification has the same message.
+        // 去重：检查上一条通知是否具有相同的消息。
+        if let last = notifications.last, last.message == message {
+            // If duplicate, just update the timestamp or ignore.
+            // Here we ignore to avoid spamming.
+            // 如果重复，则忽略以避免刷屏。
+            return
+        }
+        
+        let notification = NotificationItem(message: message, level: level)
+        notifications.append(notification)
+        
+        // Update status message and start timer.
+        // 更新状态消息并启动计时器。
+        updateStatusMessage(message)
+    }
+    
+    /// Update the status message and set a timer to clear it.
+    /// 更新状态消息并设置计时器以清除它。
+    private func updateStatusMessage(_ message: String) {
+        // Cancel existing timer.
+        // 取消现有计时器。
+        statusMessageTimer?.invalidate()
+        
+        // Set message.
+        // 设置消息。
+        statusMessage = message
+        
+        // Start new timer (60 seconds).
+        // 启动新计时器（60秒）。
+        statusMessageTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: false) { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.statusMessage = nil
+            }
+        }
+    }
+    
+    /// Clear all notifications.
+    /// 清除所有通知。
+    func clearNotifications() {
+        notifications.removeAll()
+    }
+
     // MARK: - File Operations
     // MARK: - 文件操作
     
@@ -177,7 +258,10 @@ class AppModel: ObservableObject {
                 } else {
                     // Permission failed, but try loading anyway (might work for non-sandboxed builds).
                     // 权限获取失败，但仍然尝试加载（对于非沙盒应用或用户自己的文件夹，可能不需要此权限）。
-                    self.errorMessage = "Failed to obtain access permissions for the selected folder."
+                    let msg = "Failed to obtain access permissions for the selected folder."
+                    self.errorMessage = msg
+                    self.addNotification(msg, level: .error)
+                    
                     self.currentFolder = url
                     loadFiles(from: url)
                     ensureResultsFileExists()
@@ -216,9 +300,17 @@ class AppModel: ObservableObject {
             if !files.isEmpty {
                 selectedFile = files.first
             }
+            
+            // Add notification.
+            // 添加通知。
+            let folderName = url.lastPathComponent
+            addNotification("Loaded \(files.count) images: \(folderName)", level: .info)
+            
         } catch {
             print("Error loading files: \(error)")
             // Ideally, we should set errorMessage here too.
+            self.errorMessage = "Failed to load files: \(error.localizedDescription)"
+            addNotification("Failed to load files: \(error.localizedDescription)", level: .error)
         }
     }
     
@@ -261,7 +353,9 @@ class AppModel: ObservableObject {
             // Update UI on the main thread since this might be called from a background context.
             // 在主线程上更新 UI，因为此方法可能从后台上下文调用。
             DispatchQueue.main.async {
-                self.errorMessage = "Failed to save results: \(error.localizedDescription)"
+                let msg = "Failed to save results: \(error.localizedDescription)"
+                self.errorMessage = msg
+                self.addNotification(msg, level: .error)
             }
         }
     }
@@ -312,7 +406,9 @@ class AppModel: ObservableObject {
             } catch {
                 print("Error creating review_results.json: \(error)")
                 DispatchQueue.main.async {
-                    self.errorMessage = "Failed to create review_results.json: \(error.localizedDescription)"
+                    let msg = "Failed to create review_results.json: \(error.localizedDescription)"
+                    self.errorMessage = msg
+                    self.addNotification(msg, level: .error)
                 }
             }
         }

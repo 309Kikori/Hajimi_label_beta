@@ -61,10 +61,6 @@ struct ContentView: View {
                     // 编辑器/主视图区域。
                     // ZStack 允许将背景颜色分层放置在内容后面。
                     ZStack {
-                        // Apply the configured background color, ignoring safe areas to fill the screen.
-                        // 应用配置的背景颜色，忽略安全区域以填充整个屏幕。
-                        settings.bgColor.ignoresSafeArea()
-                        
                         // Switch content based on the active tab.
                         // This acts as a router for the application's main views.
                         //
@@ -74,7 +70,7 @@ struct ContentView: View {
                         case .review:
                             EditorView(appModel: appModel, settings: settings)
                         case .overview:
-                            OverviewView(appModel: appModel, viewModel: overviewViewModel)
+                            OverviewView(appModel: appModel, viewModel: overviewViewModel, settings: settings)
                         case .stats:
                             StatsView(appModel: appModel)
                         case .settings:
@@ -95,5 +91,8 @@ struct ContentView: View {
         // Set the window background color to the system default.
         // 将窗口背景颜色设置为系统默认值。
         .background(Color(nsColor: .windowBackgroundColor))
+        // Apply the selected theme.
+        // 应用选定的主题。
+        .preferredColorScheme(settings.appTheme.colorScheme)
     }
 }
