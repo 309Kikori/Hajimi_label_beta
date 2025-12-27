@@ -18,6 +18,7 @@ import SwiftUI
 struct EditorView: View {
     @ObservedObject var appModel: AppModel
     @ObservedObject var settings: SettingsModel
+    @Environment(\.colorScheme) var colorScheme
     
     // Local state for image manipulation.
     // 图片操作的本地状态。
@@ -97,7 +98,7 @@ struct EditorView: View {
                                 Text("\(NSLocalizedString("fail", comment: "")) (F)")
                                     .padding(.horizontal, 20)
                                     .padding(.vertical, 8)
-                                    .background(Color(hex: "a10000"))
+                                    .background(colorScheme == .dark ? Color(hex: "a10000") : Color(hex: "d32f2f"))
                                     .foregroundColor(.white)
                                     .cornerRadius(4)
                             }
@@ -110,7 +111,7 @@ struct EditorView: View {
                                 Text("\(NSLocalizedString("invalid", comment: "")) (I)")
                                     .padding(.horizontal, 20)
                                     .padding(.vertical, 8)
-                                    .background(Color(hex: "8e8e8e"))
+                                    .background(colorScheme == .dark ? Color(hex: "8e8e8e") : Color(hex: "757575"))
                                     .foregroundColor(.white)
                                     .cornerRadius(4)
                             }
@@ -123,7 +124,7 @@ struct EditorView: View {
                                 Text("\(NSLocalizedString("pass", comment: "")) (P)")
                                     .padding(.horizontal, 20)
                                     .padding(.vertical, 8)
-                                    .background(Color(hex: "0e639c"))
+                                    .background(colorScheme == .dark ? Color(hex: "0e639c") : Color(hex: "1976d2"))
                                     .foregroundColor(.white)
                                     .cornerRadius(4)
                             }
@@ -149,7 +150,9 @@ struct EditorView: View {
                         Spacer()
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(settings.bgColor)
+                    // Use system window background color for empty state to ensure text readability in all themes.
+                    // 使用系统窗口背景色作为空状态背景，以确保在所有主题下文字的可读性。
+                    .background(Color(nsColor: .windowBackgroundColor))
                 }
             }
             // Reset zoom and pan when file changes.

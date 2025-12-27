@@ -192,6 +192,7 @@ struct WindowAccessor: NSViewRepresentable {
 struct GridBackground: View {
     var offset: CGSize
     var scale: CGFloat
+    var color: Color
     
     var body: some View {
         // [Performance Optimization] Use Canvas for high-performance drawing.
@@ -242,7 +243,7 @@ struct GridBackground: View {
                     path.addEllipse(in: CGRect(x: x, y: y, width: dotRadius * 2, height: dotRadius * 2))
                 }
             }
-            context.fill(path, with: .color(.gray.opacity(0.5)))
+            context.fill(path, with: .color(color.opacity(0.5)))
         }
         .allowsHitTesting(false) // Grid should not intercept clicks. (网格不应拦截点击)
     }
@@ -251,6 +252,7 @@ struct GridBackground: View {
 struct OverviewView: View {
     @ObservedObject var appModel: AppModel
     @ObservedObject var viewModel: OverviewViewModel
+    @ObservedObject var settings: SettingsModel
     
     // [Box Selection] State
     // [拉框多选] 状态
@@ -295,7 +297,7 @@ struct OverviewView: View {
                     
                     // 2. Grid
                     // 2. 网格
-                    GridBackground(offset: viewModel.canvasOffset, scale: viewModel.canvasScale)
+                    GridBackground(offset: viewModel.canvasOffset, scale: viewModel.canvasScale, color: settings.gridColor)
                     
                     // 2.5. [Box Selection] Interaction Layer
                     // Captures drag events for box selection and click events for clearing selection.
@@ -762,6 +764,6 @@ struct OverviewItemView_Optimized: View {
 
 struct OverviewView_Previews: PreviewProvider {
     static var previews: some View {
-        OverviewView(appModel: AppModel(), viewModel: OverviewViewModel())
+        OverviewView(appModel: AppModel(), viewModel: OverviewViewModel(), settings: SettingsModel())
     }
 }

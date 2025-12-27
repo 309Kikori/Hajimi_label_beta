@@ -25,3 +25,7 @@
 "no_file_selected" = "No File Selected";
 "status_ready" = "Ready";
 "auto_arrange" = "Auto Arrange";
+"theme" = "Theme";
+"theme_system" = "System";
+"theme_light" = "Light";
+"theme_dark" = "Dark";
