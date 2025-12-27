@@ -17,10 +17,14 @@ QWidget {
 
 /* --- Menu Bar --- */
 QMenuBar {
-    background-color: #1e1e1e;
+    background-color: transparent;
     color: #cccccc;
-    border-bottom: 1px solid #2b2b2b; /* 更细腻的边框 */
+    border: none;
     padding: 2px 0;
+}
+
+QMenuBar#TitleMenuBar {
+    background-color: transparent;
 }
 
 QMenuBar::item {
@@ -62,6 +66,56 @@ QMenu::separator {
     height: 1px;
     background: #454545;
     margin: 4px 10px;
+}
+
+/* --- Title Bar (VS Code 风格标题栏) --- */
+QWidget#TitleBar {
+    background-color: #3c3c3c;
+    border-bottom: 1px solid #2b2b2b;
+}
+
+/* --- Command Center (搜索栏) --- */
+QFrame#CommandCenter {
+    background-color: #464646;
+    border: 1px solid transparent;
+    border-radius: 6px;
+}
+
+QFrame#CommandCenter:hover {
+    background-color: #505050;
+    border: 1px solid #666666;
+}
+
+QLineEdit#CommandInput {
+    background-color: transparent;
+    color: #cccccc;
+    border: none;
+    padding: 0 24px;  /* 左右内边距为图标留出空间 */
+    font-size: 12px;
+    selection-background-color: #264f78;
+}
+
+QLineEdit#CommandInput::placeholder {
+    color: #969696;
+}
+
+QPushButton#CommandDisplayBtn {
+    background-color: transparent;
+    color: #969696; /* 占位符颜色 */
+    border: none;
+    font-size: 12px;
+    text-align: center;
+}
+
+QPushButton#ClearButton {
+    background-color: transparent;
+    border: none;
+    border-radius: 3px;
+    padding: 1px;
+}
+
+QPushButton#ClearButton:hover {
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
 /* --- Splitter (可拖动分割线) --- */

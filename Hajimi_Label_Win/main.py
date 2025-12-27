@@ -51,7 +51,7 @@ from PySide6.QtCore import QFile, QTextStream, Qt, QSize
 from PySide6.QtGui import QAction, QIcon
 import qtawesome as qta
 
-from ui import ActivityBar, SideBar, EditorArea, StatsView
+from ui import ActivityBar, SideBar, EditorArea, StatsView, CommandCenter
 from overview import OverviewPage
 from localization import tr  # 国际化函数: tr("key") 返回当前语言的翻译
 
@@ -406,10 +406,21 @@ class MainWindow(QMainWindow):
     # MARK: - Menu Setup
     # MARK: - 菜单设置
     def setup_menu(self):
-        """设置菜单栏"""
-        menubar = self.menuBar()
+        """设置菜单栏（VS Code 风格：菜单 + 搜索栏居中）"""
+        # 创建自定义标题栏容器（包含菜单和搜索栏）
+        self.title_bar = QWidget()
+        self.title_bar.setObjectName("TitleBar")
+        self.title_bar.setFixedHeight(30)
         
-        file_menu = menubar.addMenu(tr("file_menu"))
+        title_layout = QHBoxLayout(self.title_bar)
+        title_layout.setContentsMargins(0, 0, 0, 0)
+        title_layout.setSpacing(0)
+        
+        # 左侧菜单栏
+        self.menubar = QMenuBar()
+        self.menubar.setObjectName("TitleMenuBar")
+        
+        file_menu = self.menubar.addMenu(tr("file_menu"))
         
         # QAction: 可复用的动作，可同时添加到菜单和工具栏
         open_action = QAction(tr("open_folder"), self)
@@ -425,6 +436,18 @@ class MainWindow(QMainWindow):
         exit_action = QAction(tr("exit"), self)
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
+        
+        title_layout.addWidget(self.menubar)
+        
+        # 中间搜索栏（居中显示）
+        title_layout.addStretch(1)
+        self.command_center = CommandCenter()
+        self.command_center.searchTextChanged.connect(self.filter_files_by_name)
+        title_layout.addWidget(self.command_center)
+        title_layout.addStretch(1)
+        
+        # 设置自定义标题栏为菜单栏区域
+        self.setMenuWidget(self.title_bar)
 
     # MARK: - Folder Management
     # MARK: - 文件夹管理
@@ -655,6 +678,31 @@ class MainWindow(QMainWindow):
             self.side_bar.file_list.setCurrentRow(current_row + 1)
         else:
             self.status_label.setText(tr("all_reviewed"))
+
+    # MARK: - File Filtering
+    # MARK: - 文件筛选
+    def filter_files_by_name(self, keyword):
+        """
+        按文件名筛选文件列表。
+        
+        Args:
+            keyword: 搜索关键词，支持模糊匹配
+        """
+        if not hasattr(self.side_bar, 'file_list'):
+            return
+        
+        keyword = keyword.lower().strip()
+        
+        for i in range(self.side_bar.file_list.count()):
+            item = self.side_bar.file_list.item(i)
+            filename = item.data(Qt.UserRole)
+            
+            if not keyword:
+                # 空关键词显示所有文件
+                item.setHidden(False)
+            else:
+                # 模糊匹配文件名
+                item.setHidden(keyword not in filename.lower())
 
     # MARK: - Statistics
     # MARK: - 统计功能

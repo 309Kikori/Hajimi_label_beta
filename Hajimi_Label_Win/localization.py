@@ -45,7 +45,8 @@ class Translator:
                 "settings_title": "Settings",
                 "appearance": "Appearance",
                 "behavior": "Behavior",
-                "stats_status": "Total: {} | Pass: {} | Fail: {} | Invalid: {} | Unreviewed: {}"
+                "stats_status": "Total: {} | Pass: {} | Fail: {} | Invalid: {} | Unreviewed: {}",
+                "search_placeholder": "Search files..."
             },
             "zh_CN": {
                 "app_title": "🐱Hajimi Label  ",
@@ -88,7 +89,8 @@ class Translator:
                 "settings_title": "设置",
                 "appearance": "外观",
                 "behavior": "行为",
-                "stats_status": "总计: {} | 通过: {} | 不通过: {} | 无效: {} | 未验收: {}"
+                "stats_status": "总计: {} | 通过: {} | 不通过: {} | 无效: {} | 未验收: {}",
+                "search_placeholder": "搜索文件..."
             }
         }
 
