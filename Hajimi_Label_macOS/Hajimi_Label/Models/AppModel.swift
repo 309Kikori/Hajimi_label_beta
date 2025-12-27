@@ -64,12 +64,24 @@ class AppModel: ObservableObject {
     /// 使用 Optional 类型，因为应用启动时可能没有打开任何文件夹。
     @Published var currentFolder: URL?
     
-    /// Array of URLs for all image files in the current folder.
+    /// [Internal] All files in the current folder (unfiltered).
+    /// [内部] 当前文件夹中的所有文件（未过滤）。
+    @Published var allFiles: [URL] = []
+    
+    /// Array of URLs for all image files in the current folder (filtered by search text).
     /// Sorted lexicographically by filename for consistent ordering.
     ///
-    /// 当前文件夹中的所有图片文件的 URL 数组。
+    /// 当前文件夹中的所有图片文件的 URL 数组（根据搜索文本过滤）。
     /// 按文件名字典序排列，便于用户查找。
     @Published var files: [URL] = []
+    
+    /// Search text for filtering files.
+    /// 用于过滤文件的搜索文本。
+    @Published var searchText: String = "" {
+        didSet {
+            filterFiles()
+        }
+    }
     
     /// The currently selected image file.
     /// In Review mode, this is the image being displayed in the editor.
@@ -291,26 +303,46 @@ class AppModel: ObservableObject {
             
             // Filter and sort the files.
             // 过滤并排序文件。
-            self.files = fileURLs.filter { url in
+            let sortedFiles = fileURLs.filter { url in
                 imageExtensions.contains(url.pathExtension.lowercased())
             }.sorted(by: { $0.lastPathComponent < $1.lastPathComponent })
             
-            // Automatically select the first file if the list is not empty.
-            // 如果列表不为空，自动选中第一个文件。
-            if !files.isEmpty {
-                selectedFile = files.first
+            DispatchQueue.main.async {
+                self.allFiles = sortedFiles
+                // Apply current search filter.
+                // 应用当前搜索过滤。
+                self.filterFiles()
+                
+                // Automatically select the first file if the list is not empty.
+                // 如果列表不为空，自动选中第一个文件。
+                if !self.files.isEmpty {
+                    self.selectedFile = self.files.first
+                }
+                
+                // Add notification.
+                // 添加通知。
+                let folderName = url.lastPathComponent
+                self.addNotification("Loaded \(self.files.count) images: \(folderName)", level: .info)
             }
-            
-            // Add notification.
-            // 添加通知。
-            let folderName = url.lastPathComponent
-            addNotification("Loaded \(files.count) images: \(folderName)", level: .info)
             
         } catch {
             print("Error loading files: \(error)")
             // Ideally, we should set errorMessage here too.
             self.errorMessage = "Failed to load files: \(error.localizedDescription)"
             addNotification("Failed to load files: \(error.localizedDescription)", level: .error)
+        }
+    }
+    
+    /// Filters the file list based on the search text.
+    ///
+    /// 根据搜索文本过滤文件列表。
+    private func filterFiles() {
+        if searchText.isEmpty {
+            self.files = self.allFiles
+        } else {
+            self.files = self.allFiles.filter { url in
+                url.lastPathComponent.localizedCaseInsensitiveContains(searchText)
+            }
         }
     }
     
