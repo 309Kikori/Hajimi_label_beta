@@ -72,8 +72,8 @@ struct StatusBarView: View {
                     
                     // Text (Latest notification or Ready)
                     // 文本（最新通知或就绪）
-                    if let last = appModel.notifications.last {
-                        Text(last.message)
+                    if let message = appModel.statusMessage {
+                        Text(message)
                             .lineLimit(1)
                             .truncationMode(.tail)
                             .frame(maxWidth: 200, alignment: .leading)
@@ -97,16 +97,22 @@ struct StatusBarView: View {
     // MARK: - Computed Properties
     
     private var notificationIconName: String {
-        if appModel.notifications.isEmpty {
-            return "bell"
-        } else {
+        // If there is a status message (active notification), show badge
+        // 如果有状态消息（活动通知），显示徽章
+        if appModel.statusMessage != nil {
             return "bell.badge"
         }
+        // Otherwise, if there are unread notifications in history, maybe show badge?
+        // Or just show normal bell if status message is gone.
+        // User requested "revert to default state", which implies normal bell.
+        // 否则，如果状态消息已消失，用户要求“恢复默认状态”，这意味着显示普通铃铛。
+        return "bell"
     }
     
     private var notificationIconColor: Color {
-        // If the last notification is an error, show red bell
-        if let last = appModel.notifications.last, last.level == .error {
+        // If the active status message corresponds to an error, show red bell
+        // 如果活动状态消息对应错误，显示红色铃铛
+        if appModel.statusMessage != nil, let last = appModel.notifications.last, last.level == .error {
             return .red
         }
         return .white

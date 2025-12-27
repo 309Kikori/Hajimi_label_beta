@@ -98,6 +98,14 @@ class AppModel: ObservableObject {
     /// 通知列表。
     @Published var notifications: [NotificationItem] = []
     
+    /// Temporary status message to display in the status bar.
+    /// 状态栏显示的临时状态消息。
+    @Published var statusMessage: String?
+    
+    /// Timer to clear the status message.
+    /// 清除状态消息的计时器。
+    private var statusMessageTimer: Timer?
+    
     // MARK: - Computed Properties
     // MARK: - 计算属性
     
@@ -141,8 +149,41 @@ class AppModel: ObservableObject {
     /// Add a notification.
     /// 添加通知。
     func addNotification(_ message: String, level: NotificationLevel = .info) {
+        // Deduplicate: Check if the last notification has the same message.
+        // 去重：检查上一条通知是否具有相同的消息。
+        if let last = notifications.last, last.message == message {
+            // If duplicate, just update the timestamp or ignore.
+            // Here we ignore to avoid spamming.
+            // 如果重复，则忽略以避免刷屏。
+            return
+        }
+        
         let notification = NotificationItem(message: message, level: level)
         notifications.append(notification)
+        
+        // Update status message and start timer.
+        // 更新状态消息并启动计时器。
+        updateStatusMessage(message)
+    }
+    
+    /// Update the status message and set a timer to clear it.
+    /// 更新状态消息并设置计时器以清除它。
+    private func updateStatusMessage(_ message: String) {
+        // Cancel existing timer.
+        // 取消现有计时器。
+        statusMessageTimer?.invalidate()
+        
+        // Set message.
+        // 设置消息。
+        statusMessage = message
+        
+        // Start new timer (60 seconds).
+        // 启动新计时器（60秒）。
+        statusMessageTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: false) { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.statusMessage = nil
+            }
+        }
     }
     
     /// Clear all notifications.
