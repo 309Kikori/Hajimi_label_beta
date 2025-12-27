@@ -94,5 +94,12 @@ struct ContentView: View {
         // Apply the selected theme.
         // 应用选定的主题。
         .preferredColorScheme(settings.appTheme.colorScheme)
+        // [Command Center] Add search bar to the toolbar.
+        // [命令中心] 将搜索栏添加到工具栏。
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                CommandCenterView(appModel: appModel)
+            }
+        }
     }
 }
