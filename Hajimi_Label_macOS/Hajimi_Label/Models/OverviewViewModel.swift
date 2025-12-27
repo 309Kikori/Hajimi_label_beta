@@ -38,6 +38,10 @@ struct OverviewItem: Identifiable, Equatable {
     /// 生成的缩略图图像。
     var thumbnail: NSImage?
     
+    /// Whether the image is loaded in high resolution.
+    /// 图像是否已加载为高分辨率。
+    var isHighRes: Bool = false
+    
     // MARK: - Performance Optimization
     // MARK: - 性能优化
     
@@ -53,7 +57,8 @@ struct OverviewItem: Identifiable, Equatable {
         lhs.position == rhs.position &&
         lhs.size == rhs.size &&
         lhs.scale == rhs.scale &&
-        (lhs.thumbnail != nil) == (rhs.thumbnail != nil) // Only compare existence, not content (只比较是否存在，不比较内容)
+        (lhs.thumbnail != nil) == (rhs.thumbnail != nil) && // Only compare existence, not content (只比较是否存在，不比较内容)
+        lhs.isHighRes == rhs.isHighRes
     }
 }
 
@@ -152,36 +157,39 @@ class OverviewViewModel: ObservableObject {
     /// - Returns: An array of items that intersect with the viewport. (与视口相交的项目数组)
     func visibleItems(in viewportSize: CGSize) -> [OverviewItem] {
         // Calculate visible area in World Space (coordinate system of the items).
-        // World Coordinate = Screen Coordinate / Scale - Offset
+        // Formula: World = (Screen - Center) / Scale - Offset
         //
         // 计算世界空间（项目的坐标系）中的可见区域。
-        // 世界坐标 = 屏幕坐标 / 缩放比例 - 偏移量
+        // 公式：世界坐标 = (屏幕坐标 - 中心) / 缩放比例 - 偏移量
         
         let margin: CGFloat = 600 // Extra margin to prevent items from "popping" in at the edges. (额外边距，防止项目在边缘突然出现)
         
-        // Center of the screen in World Space.
-        // 世界空间中的屏幕中心。
-        let centerX = -canvasOffset.width
-        let centerY = -canvasOffset.height
+        // Screen bounds (0,0 to W,H)
+        let screenMinX: CGFloat = -margin
+        let screenMinY: CGFloat = -margin
+        let screenMaxX: CGFloat = viewportSize.width + margin
+        let screenMaxY: CGFloat = viewportSize.height + margin
         
-        // Half-width and half-height of the visible area in World Space.
-        // 世界空间中可见区域的半宽和半高。
-        let halfWidth = (viewportSize.width / 2 + margin) / canvasScale
-        let halfHeight = (viewportSize.height / 2 + margin) / canvasScale
+        // Convert to World Space
+        // World = (Screen - Center) / Scale - Offset
+        let centerX = viewportSize.width / 2
+        let centerY = viewportSize.height / 2
         
-        let minX = centerX - halfWidth
-        let maxX = centerX + halfWidth
-        let minY = centerY - halfHeight
-        let maxY = centerY + halfHeight
+        let minX = (screenMinX - centerX) / canvasScale - canvasOffset.width
+        let maxX = (screenMaxX - centerX) / canvasScale - canvasOffset.width
+        let minY = (screenMinY - centerY) / canvasScale - canvasOffset.height
+        let maxY = (screenMaxY - centerY) / canvasScale - canvasOffset.height
         
         // Filter items based on bounding box intersection.
         // 基于边界框相交过滤项目。
         return items.filter { item in
-            let itemHalfSize = max(item.size.width, item.size.height) * item.scale / 2
-            return item.position.x + itemHalfSize >= minX &&
-                   item.position.x - itemHalfSize <= maxX &&
-                   item.position.y + itemHalfSize >= minY &&
-                   item.position.y - itemHalfSize <= maxY
+            let itemHalfWidth = item.size.width * item.scale / 2
+            let itemHalfHeight = item.size.height * item.scale / 2
+            
+            return item.position.x + itemHalfWidth >= minX &&
+                   item.position.x - itemHalfWidth <= maxX &&
+                   item.position.y + itemHalfHeight >= minY &&
+                   item.position.y - itemHalfHeight <= maxY
         }
     }
     
@@ -364,6 +372,52 @@ class OverviewViewModel: ObservableObject {
     func updatePosition(for id: UUID, newPosition: CGPoint) {
         if let index = items.firstIndex(where: { $0.id == id }) {
             items[index].position = newPosition
+        }
+    }
+    
+    // MARK: - High Resolution Loading
+    // MARK: - 高分辨率加载
+    
+    /// Checks visible items and loads high-resolution images if the count is small (<= 5).
+    ///
+    /// 检查可见项目，如果数量较少（<= 5），则加载高分辨率图像。
+    func checkAndLoadHighRes(viewportSize: CGSize) {
+        let visible = visibleItems(in: viewportSize)
+        
+        // If visible items are few, load high res.
+        // 如果可见项目很少，加载高分辨率。
+        if visible.count <= 5 {
+            for item in visible {
+                if !item.isHighRes {
+                    loadHighRes(for: item.id)
+                }
+            }
+        }
+    }
+    
+    /// Loads the full resolution image for a specific item.
+    ///
+    /// 为特定项目加载全分辨率图像。
+    func loadHighRes(for id: UUID) {
+        guard let index = items.firstIndex(where: { $0.id == id }) else { return }
+        let item = items[index]
+        
+        // Avoid reloading if already high res.
+        // 如果已经是高分辨率，避免重新加载。
+        if item.isHighRes { return }
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            if let image = NSImage(contentsOf: item.fileURL) {
+                DispatchQueue.main.async {
+                    if let idx = self.items.firstIndex(where: { $0.id == id }) {
+                        self.items[idx].thumbnail = image
+                        self.items[idx].isHighRes = true
+                        // Update size if needed, but usually we keep the layout size.
+                        // However, if the thumbnail aspect ratio was wrong, we might want to update it.
+                        // But for now, let's assume thumbnail AR was correct.
+                    }
+                }
+            }
         }
     }
 }

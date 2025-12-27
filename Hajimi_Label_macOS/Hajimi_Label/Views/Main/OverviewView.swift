@@ -138,16 +138,19 @@ struct WindowAccessor: NSViewRepresentable {
                     
                     // Apply pan.
                     // [Interaction Optimization] Correct drag sensitivity after zooming.
-                    // When zoomed out (scale < 1), 1px on screen corresponds to 1/scale px in world space.
-                    // Dividing by scale ensures that the canvas moves 1:1 with the mouse cursor visually.
+                    // Since we changed the modifier order to Pan -> Scale -> Center,
+                    // the offset is applied in World Space.
+                    // Screen Delta = World Delta * Scale
+                    // World Delta = Screen Delta / Scale
                     //
                     // 应用平移。
                     // [交互优化] 修正缩放后的拖拽灵敏度。
-                    // 当画布缩放比例很小（缩小）时，屏幕上的 1px 对应画布世界坐标中的 1/scale px。
-                    // 如果不除以 scale，在缩小状态下拖拽会感觉非常“滑”或移动极其缓慢（不跟手）。
-                    // 除以 scale 后，鼠标移动 1px，画布内容在视觉上也准确移动 1px。
+                    // 由于我们将修饰符顺序更改为 平移 -> 缩放 -> 居中，
+                    // 偏移量是在世界空间中应用的。
+                    // 屏幕增量 = 世界增量 * 缩放比例
+                    // 世界增量 = 屏幕增量 / 缩放比例
                     viewModel.canvasOffset.width += deltaX / viewModel.canvasScale
-                    viewModel.canvasOffset.height -= deltaY / viewModel.canvasScale // Y is inverted in some contexts, but here deltaY is up-positive (Y 在某些上下文中是反转的，但这里 deltaY 是向上为正)
+                    viewModel.canvasOffset.height -= deltaY / viewModel.canvasScale
                     
                     lastPanLocation = currentLocation
                     return nil
@@ -340,7 +343,7 @@ struct OverviewView: View {
                     
                     // 3. Infinite Canvas Content
                     // 3. 无限画布内容
-                    ZStack {
+                    ZStack(alignment: .topLeading) {
                         // [Performance Optimization] View Culling: Only render items visible in the viewport.
                         // [性能优化] 视图剔除：只渲染可见区域的项目。
                         let visibleItems = viewModel.visibleItems(in: geometry.size)
@@ -357,9 +360,17 @@ struct OverviewView: View {
                             SelectionOverlay(viewModel: viewModel)
                         }
                     }
-                    .offset(x: geometry.size.width / 2, y: geometry.size.height / 2) // Center (0,0) on screen
+                    // [Fix] Modifier Order for Correct Zooming
+                    // [修复] 正确的缩放修饰符顺序
+                    // 1. Pan (World Space)
+                    // 1. 平移（世界空间）
                     .offset(viewModel.canvasOffset)
-                    .scaleEffect(viewModel.canvasScale)
+                    // 2. Zoom (Scale around top-leading origin to match coordinate system)
+                    // 2. 缩放（围绕左上角原点缩放，以匹配坐标系）
+                    .scaleEffect(viewModel.canvasScale, anchor: .topLeading)
+                    // 3. Center on Screen (Screen Space)
+                    // 3. 屏幕居中（屏幕空间）
+                    .offset(x: geometry.size.width / 2, y: geometry.size.height / 2)
                     .frame(width: geometry.size.width, height: geometry.size.height)
                     
                     // 3.5. [Box Selection] Visual Feedback
@@ -397,6 +408,17 @@ struct OverviewView: View {
         .onChange(of: appModel.files) { _, newFiles in
             viewModel.loadImages(from: newFiles)
         }
+        // [High Res Loading] Check when zoom or pan changes.
+        // [高分辨率加载] 当缩放或平移变化时检查。
+        .onChange(of: viewModel.canvasScale) { _, _ in
+            // Debounce could be added here if needed.
+            // Use a fixed reasonable viewport size for calculation, or pass geometry if available.
+            // Using a slightly larger size ensures we load images just outside the view too.
+            viewModel.checkAndLoadHighRes(viewportSize: CGSize(width: 1920, height: 1080))
+        }
+        .onChange(of: viewModel.canvasOffset) { _, _ in
+            viewModel.checkAndLoadHighRes(viewportSize: CGSize(width: 1920, height: 1080))
+        }
     }
     
     // [Box Selection] Convert screen space selection rect to world space and select intersecting items.
@@ -418,10 +440,17 @@ struct OverviewView: View {
         
         let worldCorners = corners.map { p -> CGPoint in
             // Inverse Transform: Screen -> World
-            // Screen = Center + (World * Scale + Offset)
+            // Screen = Center + (World + Offset) * Scale
             // World = (Screen - Center) / Scale - Offset
             //
             // 逆变换：屏幕坐标 -> 世界坐标
+            // 注意：由于 scaleEffect 的 anchor 设置为 .topLeading，
+            // 变换顺序实际上是：
+            // 1. 平移 (Offset)
+            // 2. 缩放 (Scale)
+            // 3. 居中 (Center)
+            //
+            // 公式：Screen = (World + Offset) * Scale + Center
             
             let x1 = p.x - frameWidth / 2
             let y1 = p.y - frameHeight / 2
@@ -429,11 +458,6 @@ struct OverviewView: View {
             let x2 = x1 / scale
             let y2 = y1 / scale
             
-            // Step 3: 逆偏移
-            // 由于我们在视图中添加了 .offset(x: frameWidth/2, y: frameHeight/2) 来将 (0,0) 居中，
-            // 所以这里不需要再加回 frameWidth/2。
-            // 现在的变换链是：Screen = Center + (World + Offset) * Scale
-            // 所以：World = (Screen - Center) / Scale - Offset
             let x3 = x2 - offset.width
             let y3 = y2 - offset.height
             
@@ -451,7 +475,20 @@ struct OverviewView: View {
         // 查找与 worldRect 相交的项目。
         var newSelection = Set<UUID>()
         for item in viewModel.items {
-            if worldRect.contains(CGPoint(x: item.position.x, y: item.position.y)) {
+            // Calculate item's world frame considering its individual scale.
+            // 计算考虑其单独缩放比例的项目的世界框架。
+            let width = item.size.width * item.scale
+            let height = item.size.height * item.scale
+            let itemFrame = CGRect(
+                x: item.position.x - width / 2,
+                y: item.position.y - height / 2,
+                width: width,
+                height: height
+            )
+            
+            // Check for intersection instead of just center point containment.
+            // 检查相交而不是仅检查中心点包含。
+            if worldRect.intersects(itemFrame) {
                 newSelection.insert(item.id)
             }
         }
@@ -666,12 +703,16 @@ struct OverviewItemView_Optimized: View {
     // Constant screen space size.
     // 恒定屏幕空间尺寸。
     private var handleSize: CGFloat {
-        let totalScale = max(item.scale * viewModel.canvasScale, 0.01)
+        // [Fix] Remove item.scale dependency as we now bake scale into frame size.
+        // [修复] 移除 item.scale 依赖，因为我们现在将缩放烘焙到帧大小中。
+        let totalScale = max(viewModel.canvasScale, 0.01)
         return 12.0 / totalScale
     }
     
     private var borderWidth: CGFloat {
-        let totalScale = max(item.scale * viewModel.canvasScale, 0.01)
+        // [Fix] Remove item.scale dependency.
+        // [修复] 移除 item.scale 依赖。
+        let totalScale = max(viewModel.canvasScale, 0.01)
         return 3.0 / totalScale
     }
     
@@ -681,6 +722,11 @@ struct OverviewItemView_Optimized: View {
     }
     
     var body: some View {
+        // [Fix] Bake item.scale into layout frames to ensure correct hit testing.
+        // [修复] 将 item.scale 烘焙到布局帧中，以确保正确的命中测试。
+        let scaledWidth = item.size.width * item.scale
+        let scaledHeight = item.size.height * item.scale
+        
         ZStack {
             // 1. Image Layer (Centered at position).
             // 1. 图片层（以位置为中心）。
@@ -690,14 +736,14 @@ struct OverviewItemView_Optimized: View {
                         .resizable()
                         .antialiased(true)
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: item.size.width, height: item.size.height)
+                        .frame(width: scaledWidth, height: scaledHeight)
                         .background(Color.black.opacity(0.1))
                         .cornerRadius(4)
                         .shadow(radius: isSelected ? 4 : 2)
                 } else {
                     Rectangle()
                         .fill(Color.gray.opacity(0.2))
-                        .frame(width: item.size.width, height: item.size.height)
+                        .frame(width: scaledWidth, height: scaledHeight)
                         .overlay(ProgressView())
                 }
                 
@@ -706,10 +752,10 @@ struct OverviewItemView_Optimized: View {
                 if isSelected {
                     RoundedRectangle(cornerRadius: 4)
                         .stroke(Color.blue, lineWidth: borderWidth)
-                        .frame(width: item.size.width, height: item.size.height)
+                        .frame(width: scaledWidth, height: scaledHeight)
                 }
             }
-            .frame(width: item.size.width, height: item.size.height)
+            .frame(width: scaledWidth, height: scaledHeight)
             
             // 2. Status Indicator (Overlay, Top-Left).
             // 2. 状态指示器（覆盖层，左上角）。
@@ -721,7 +767,7 @@ struct OverviewItemView_Optimized: View {
                     .background(cachedStatusColor)
                     .foregroundColor(.white)
                     .cornerRadius(4)
-                    .offset(y: -item.size.height/2 - 15)
+                    .offset(y: -scaledHeight/2 - 15)
             }
             
             // 3. Filename (Overlay, Bottom).
@@ -730,12 +776,13 @@ struct OverviewItemView_Optimized: View {
                 .font(.caption)
                 .foregroundColor(.primary)
                 .lineLimit(1)
-                .frame(width: item.size.width)
+                .frame(width: scaledWidth)
                 .background(Color.black.opacity(0.5))
                 .cornerRadius(4)
-                .offset(y: item.size.height/2 + 15)
+                .offset(y: scaledHeight/2 + 15)
         }
-        .scaleEffect(item.scale)
+        // [Fix] Removed .scaleEffect(item.scale) to fix hit testing issues.
+        // [修复] 移除了 .scaleEffect(item.scale) 以修复命中测试问题。
         .contentShape(Rectangle())
         // Tap to select.
         // 单击选中。
