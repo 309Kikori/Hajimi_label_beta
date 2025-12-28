@@ -52,5 +52,25 @@ struct Hajimi_LabelApp: App {
         // Hide the standard system title bar for a custom UI look.
         // 隐藏标准系统标题栏，以实现自定义的 UI 外观。
         .windowStyle(.hiddenTitleBar)
+        .commands {
+            CommandGroup(replacing: .newItem) {
+                Button("Open Workspace...") {
+                    appModel.openFolder()
+                }
+                // Future TODO: Add keyboard shortcut here (e.g., .keyboardShortcut("o", modifiers: .command))
+                // 未来待办：在此处添加快捷键（例如 .keyboardShortcut("o", modifiers: .command)）
+                
+                Button("Close Workspace") {
+                    appModel.currentFolder = nil
+                    appModel.files = []
+                    appModel.allFiles = []
+                    appModel.selectedFile = nil
+                    appModel.results = [:]
+                    appModel.searchText = ""
+                }
+                // Future TODO: Add keyboard shortcut here (e.g., .keyboardShortcut("w", modifiers: [.command, .shift]))
+                // 未来待办：在此处添加快捷键（例如 .keyboardShortcut("w", modifiers: [.command, .shift])）
+            }
+        }
     }
 }
