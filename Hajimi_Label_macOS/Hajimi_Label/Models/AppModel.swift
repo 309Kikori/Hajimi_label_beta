@@ -83,6 +83,10 @@ class AppModel: ObservableObject {
         }
     }
     
+    /// Whether the command center dropdown is open.
+    /// 命令中心下拉菜单是否打开。
+    @Published var isCommandCenterOpen: Bool = false
+    
     /// The currently selected image file.
     /// In Review mode, this is the image being displayed in the editor.
     ///

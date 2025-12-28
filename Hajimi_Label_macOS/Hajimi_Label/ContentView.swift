@@ -101,5 +101,14 @@ struct ContentView: View {
                 CommandCenterView(appModel: appModel)
             }
         }
+        // [Command Center] Global Overlay for Dropdown Panel
+        // [命令中心] 下拉面板的全局覆盖层
+        .overlay(alignment: .top) {
+            if appModel.isCommandCenterOpen {
+                CommandCenterPanel(appModel: appModel)
+                    .offset(y: 38) // Offset to appear below the toolbar
+                    .transition(.opacity)
+            }
+        }
     }
 }
