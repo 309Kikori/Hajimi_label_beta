@@ -51,7 +51,7 @@ from PySide6.QtCore import QFile, QTextStream, Qt, QSize
 from PySide6.QtGui import QAction, QIcon
 import qtawesome as qta
 
-from ui import ActivityBar, SideBar, EditorArea, StatsView, CommandCenter
+from ui import ActivityBar, SideBar, EditorArea, StatsView, CommandCenter, CommandPalette
 from overview import OverviewPage
 from localization import tr  # 国际化函数: tr("key") 返回当前语言的翻译
 
@@ -399,6 +399,7 @@ class MainWindow(QMainWindow):
         self.current_file = ""
         self.results = {}  # {filename: "pass"/"fail"/"invalid"}
         self.files = []    # 图像文件名列表
+        self.recent_files = []  # 最近审阅的文件列表（最多保存20个）
 
         self.load_stylesheet()
         self.apply_config()
@@ -442,7 +443,7 @@ class MainWindow(QMainWindow):
         # 中间搜索栏（居中显示）
         title_layout.addStretch(1)
         self.command_center = CommandCenter()
-        self.command_center.searchTextChanged.connect(self.filter_files_by_name)
+        self.command_center.commandPaletteRequested.connect(self.show_command_palette)
         title_layout.addWidget(self.command_center)
         title_layout.addStretch(1)
         
@@ -520,8 +521,13 @@ class MainWindow(QMainWindow):
         """
         if page_name == "Review":
             self.content_stack.setCurrentWidget(self.editor_area)
-            # 点击Review图标时展开侧边栏（如果已折叠）
-            self.expand_sidebar()
+            # 恢复侧边栏显示
+            self.side_bar.setVisible(True)
+            # 如果宽度为0（之前被隐藏），则恢复默认宽度
+            if self.splitter.sizes()[0] == 0:
+                self.splitter.setSizes([self.sidebar_default_width, 1000])
+                self.sidebar_is_collapsed = False
+                
         elif page_name == "Overview":
             self.content_stack.setCurrentWidget(self.overview_page)
             self.side_bar.setVisible(False)  # 隐藏侧边栏腾出空间
@@ -703,6 +709,37 @@ class MainWindow(QMainWindow):
             else:
                 # 模糊匹配文件名
                 item.setHidden(keyword not in filename.lower())
+    
+    # MARK: - Command Palette
+    # MARK: - 命令面板
+    def show_command_palette(self):
+        """显示命令面板"""
+        # 定位到命令栏下方
+        command_pos = self.command_center.mapToGlobal(self.command_center.rect().bottomLeft())
+        
+        # 创建命令面板
+        palette = CommandPalette(self, self.files, self.recent_files)
+        palette.move(command_pos.x() - (palette.width() - self.command_center.width()) // 2, command_pos.y())
+        palette.fileSelected.connect(self.load_file)
+        palette.exec()
+    
+    def update_recent_files(self, filename):
+        """
+        更新最近审阅的文件列表。
+        
+        Args:
+            filename: 文件名
+        """
+        if filename in self.recent_files:
+            # 已存在则移到最前面
+            self.recent_files.remove(filename)
+        
+        # 添加到最前面
+        self.recent_files.insert(0, filename)
+        
+        # 只保留最近20个
+        if len(self.recent_files) > 20:
+            self.recent_files = self.recent_files[:20]
 
     # MARK: - Statistics
     # MARK: - 统计功能

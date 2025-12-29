@@ -2,9 +2,9 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
     QFrame, QListWidget, QGraphicsView, QGraphicsScene, 
     QGraphicsPixmapItem, QSizePolicy, QFileDialog, QSplitter,
-    QListWidgetItem, QLineEdit, QStackedLayout
+    QListWidgetItem, QLineEdit, QDialog
 )
-from PySide6.QtCore import Qt, Signal, QSize, QRectF, QEvent
+from PySide6.QtCore import Qt, Signal, QSize, QRectF
 from PySide6.QtGui import QIcon, QPixmap, QAction, QBrush, QColor, QPainter
 import qtawesome as qta
 
@@ -16,92 +16,6 @@ ICON_COLOR_ACTIVE = '#ffffff'
 ICON_COLOR_PASS = '#4ec9b0'
 ICON_COLOR_FAIL = '#f14c4c'
 ICON_COLOR_WARNING = '#cca700'
-
-
-# MARK: - Command Center (搜索栏)
-class CommandCenter(QFrame):
-    """
-    VS Code 风格的顶部搜索栏组件（嵌入标题栏）。
-    
-    功能:
-    - 文件名筛选: 输入关键词实时筛选文件列表
-    - 交互: 未聚焦时居中显示，点击聚焦后左对齐
-    
-    信号:
-    - searchTextChanged(str): 搜索文本变化时发出
-    """
-    searchTextChanged = Signal(str)
-    
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setObjectName("CommandCenter")
-        self.setFixedWidth(400)
-        self.setFixedHeight(24)
-        
-        # 使用 StackedLayout 实现两种状态切换
-        self.stack_layout = QStackedLayout(self)
-        self.stack_layout.setContentsMargins(0, 0, 0, 0)
-        
-        # --- 状态 1: 显示模式 (居中按钮) ---
-        self.display_btn = QPushButton()
-        self.display_btn.setObjectName("CommandDisplayBtn")
-        self.display_btn.setFlat(True)
-        self.display_btn.setCursor(Qt.ArrowCursor)
-        
-        # 设置图标和文字
-        search_icon = qta.icon('fa5s.search', color='#969696')
-        self.display_btn.setIcon(search_icon)
-        self.display_btn.setText(f" {tr('search_placeholder')}") # 加个空格增加间距
-        self.display_btn.clicked.connect(self.switch_to_edit)
-        
-        self.stack_layout.addWidget(self.display_btn)
-        
-        # --- 状态 2: 编辑模式 (左对齐输入框) ---
-        self.search_input = QLineEdit()
-        self.search_input.setObjectName("CommandInput")
-        self.search_input.setPlaceholderText(tr("search_placeholder"))
-        self.search_input.setFrame(False)
-        self.search_input.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.search_input.textChanged.connect(self.on_text_changed)
-        
-        # 安装事件过滤器以捕获焦点丢失
-        self.search_input.installEventFilter(self)
-        
-        # 使用 QAction 添加搜索图标到输入框左侧 (保持左对齐时的图标)
-        self.search_action = QAction(search_icon, '', self.search_input)
-        self.search_input.addAction(self.search_action, QLineEdit.LeadingPosition)
-        
-        # 清除按钮
-        self.clear_action = QAction(qta.icon('fa5s.times', color='#969696'), '', self.search_input)
-        self.clear_action.triggered.connect(self.clear_search)
-        self.clear_action.setVisible(False)
-        self.search_input.addAction(self.clear_action, QLineEdit.TrailingPosition)
-        
-        self.stack_layout.addWidget(self.search_input)
-        
-    def switch_to_edit(self):
-        """切换到编辑模式"""
-        self.stack_layout.setCurrentIndex(1)
-        self.search_input.setFocus()
-        
-    def eventFilter(self, obj, event):
-        """事件过滤器：处理输入框失去焦点"""
-        if obj == self.search_input and event.type() == QEvent.FocusOut:
-            # 如果内容为空，切换回显示模式
-            if not self.search_input.text():
-                self.stack_layout.setCurrentIndex(0)
-        return super().eventFilter(obj, event)
-    
-    def on_text_changed(self, text):
-        """处理搜索文本变化"""
-        self.clear_action.setVisible(len(text) > 0)
-        self.searchTextChanged.emit(text)
-    
-    def clear_search(self):
-        """清除搜索内容"""
-        self.search_input.clear()
-        self.search_input.setFocus() # 清除后保持焦点
-
 
 # MARK: - Activity Bar
 # MARK: - 活动栏
@@ -117,6 +31,7 @@ class ActivityBar(QFrame):
 
         # MARK: - Navigation Buttons (Top)
         # MARK: - 导航按钮（顶部）
+        # Using QtAwesome icons for professional look
         self.btn_review = self.create_button("Review", "fa5s.eye")  # 审核视图
         self.btn_overview = self.create_button("Overview", "fa5s.th-large")  # 概览网格
         self.btn_stats = self.create_button("Statistics", "fa5s.chart-bar")  # 统计图表
@@ -285,7 +200,7 @@ class SideBar(QFrame):
         is_expanded = self.folder_header.isChecked()
         self.file_list.setVisible(is_expanded)
         
-        # 更新箭头图标
+        # Update arrow icon with QtAwesome
         if is_expanded:
             self.folder_header.setIcon(qta.icon('fa5s.chevron-down', color=ICON_COLOR))
         else:
@@ -520,3 +435,200 @@ class StatsView(QWidget):
     def update_stats(self, total, passed, failed, invalid=0, unreviewed=0):
         text = f"{tr('total')}: {total}\n{tr('passed')}: {passed}\n{tr('failed')}: {failed}\n{tr('invalid')}: {invalid}\n{tr('unreviewed')}: {unreviewed}"
         self.stats_label.setText(text)
+
+
+# MARK: - Command Center
+# MARK: - 命令中心
+class CommandCenter(QFrame):
+    commandPaletteRequested = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("CommandCenter")
+        self.setFixedSize(400, 28)
+        self.setCursor(Qt.PointingHandCursor)
+        
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(10, 0, 10, 0)
+        layout.setSpacing(10)
+        
+        # Search Icon
+        icon = QLabel()
+        icon.setPixmap(qta.icon('fa5s.search', color='#cccccc').pixmap(14, 14))
+        layout.addWidget(icon)
+        
+        # Placeholder Text
+        text = QLabel("Search files (Ctrl+P)") 
+        text.setStyleSheet("color: #cccccc; font-size: 12px;")
+        layout.addWidget(text)
+        
+        layout.addStretch()
+        
+        self.setStyleSheet("""
+            QFrame#CommandCenter {
+                background-color: #2a2d2e;
+                border-radius: 6px;
+                border: 1px solid #454545;
+            }
+            QFrame#CommandCenter:hover {
+                background-color: #313131;
+                border: 1px solid #555555;
+            }
+            QLabel {
+                background-color: transparent;
+                color: #cccccc;
+            }
+        """)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.commandPaletteRequested.emit()
+        super().mousePressEvent(event)
+
+
+# MARK: - Command Palette
+# MARK: - 命令面板
+class CommandPalette(QDialog):
+    fileSelected = Signal(str)
+
+    def __init__(self, parent=None, files=None, recent_files=None):
+        super().__init__(parent)
+        self.files = files or []
+        self.recent_files = recent_files or []
+        
+        self.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint)
+        self.setFixedSize(600, 400)
+        
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        
+        # Search Input
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Search files by name...")
+        self.search_input.setStyleSheet("""
+            QLineEdit {
+                background-color: #3c3c3c;
+                color: #cccccc;
+                border: 1px solid #454545;
+                border-radius: 4px;
+                padding: 8px;
+                font-size: 14px;
+                selection-background-color: #264f78;
+            }
+            QLineEdit:focus {
+                border: 1px solid #007acc;
+            }
+        """)
+        self.search_input.textChanged.connect(self.filter_files)
+        layout.addWidget(self.search_input)
+        
+        # Results List
+        self.result_list = QListWidget()
+        self.result_list.setStyleSheet("""
+            QListWidget {
+                background-color: #252526;
+                border: none;
+                outline: none;
+            }
+            QListWidget::item {
+                padding: 8px 10px;
+                color: #cccccc;
+            }
+            QListWidget::item:selected {
+                background-color: #04395e;
+                color: white;
+            }
+            QListWidget::item:hover:!selected {
+                background-color: #2a2d2e;
+            }
+        """)
+        self.result_list.itemClicked.connect(self.on_item_clicked)
+        layout.addWidget(self.result_list)
+        
+        self.setStyleSheet("background-color: #252526; border: 1px solid #454545;")
+        
+        # Populate initial list (recent files first)
+        self.filter_files("")
+        
+        # Focus input
+        self.search_input.setFocus()
+
+    def filter_files(self, text):
+        self.result_list.clear()
+        text = text.lower()
+        
+        # If text is empty, show recent files
+        if not text:
+            if self.recent_files:
+                header = QListWidgetItem("Recent")
+                header.setFlags(Qt.NoItemFlags) # Not selectable
+                header.setForeground(QBrush(QColor("#888888")))
+                self.result_list.addItem(header)
+                
+                for f in self.recent_files:
+                    item = QListWidgetItem(f)
+                    item.setData(Qt.UserRole, f)
+                    item.setIcon(qta.icon('fa5s.history', color='#cccccc'))
+                    self.result_list.addItem(item)
+            
+            # Also show all files if list is short? Or just wait for input?
+            # Let's show all files below recent
+            if self.files:
+                header = QListWidgetItem("All Files")
+                header.setFlags(Qt.NoItemFlags)
+                header.setForeground(QBrush(QColor("#888888")))
+                self.result_list.addItem(header)
+                
+                count = 0
+                for f in self.files:
+                    if f not in self.recent_files:
+                        item = QListWidgetItem(f)
+                        item.setData(Qt.UserRole, f)
+                        item.setIcon(qta.icon('fa5s.file-image', color='#cccccc'))
+                        self.result_list.addItem(item)
+                        count += 1
+                        if count > 50: break # Limit initial display
+        else:
+            # Filter files
+            count = 0
+            for f in self.files:
+                if text in f.lower():
+                    item = QListWidgetItem(f)
+                    item.setData(Qt.UserRole, f)
+                    item.setIcon(qta.icon('fa5s.file-image', color='#cccccc'))
+                    self.result_list.addItem(item)
+                    count += 1
+                    if count > 100: break
+
+        if self.result_list.count() > 0:
+            # Select first selectable item
+            for i in range(self.result_list.count()):
+                item = self.result_list.item(i)
+                if item.flags() & Qt.ItemIsSelectable:
+                    self.result_list.setCurrentItem(item)
+                    break
+
+    def on_item_clicked(self, item):
+        filename = item.data(Qt.UserRole)
+        if filename:
+            self.fileSelected.emit(filename)
+            self.accept()
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Down:
+            row = self.result_list.currentRow()
+            if row < self.result_list.count() - 1:
+                self.result_list.setCurrentRow(row + 1)
+        elif event.key() == Qt.Key_Up:
+            row = self.result_list.currentRow()
+            if row > 0:
+                self.result_list.setCurrentRow(row - 1)
+        elif event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter:
+            item = self.result_list.currentItem()
+            if item:
+                self.on_item_clicked(item)
+        elif event.key() == Qt.Key_Escape:
+            self.reject()
+        else:
+            super().keyPressEvent(event)

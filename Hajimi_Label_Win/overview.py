@@ -314,41 +314,24 @@ class OverviewCanvas(QGraphicsView):
         # Threshold: If scale > 0.5 (zoomed in), load high res
         should_load_high_res = scale > 0.5
         
-        items = self.scene.items(view_rect)
+        # Iterate all items to manage memory efficiently
+        # For typical usage (<1000 items), iterating all items is acceptable.
+        all_items = self.scene.items()
         
-        # Unload invisible items first (simple approach: iterate all items in scene? No, too slow)
-        # Better: Keep track of loaded items? 
-        # For now, let's just iterate visible items and load them if needed.
-        # Unloading invisible ones is tricky without a list.
-        # Let's iterate all RefItems in scene if count is manageable (<1000)
-        # Or just rely on visible items logic.
-        
-        # Optimization: Only iterate visible items to LOAD.
-        # To UNLOAD, we need to know which ones are loaded.
-        # Let's add a static list to RefItem or manage it here.
-        
-        # Let's just iterate visible items for now.
-        for item in items:
+        for item in all_items:
             if isinstance(item, RefItem):
                 if should_load_high_res:
-                    item.load_high_res()
-                else:
-                    item.unload_high_res()
-        
-        # To properly unload invisible items that were previously loaded:
-        # We can iterate scene.items() but that might be slow.
-        # A better way is to have a set of 'high_res_items' in the scene or view.
-        # But for < 500 items, iterating scene.items() is fast enough.
-        if should_load_high_res:
-             # If we are zoomed in, we might have panned away from some high-res items.
-             # We should unload them to save memory.
-             all_items = self.scene.items()
-             for item in all_items:
-                 if isinstance(item, RefItem) and item.is_high_res:
-                     if not item.collidesWithItem(self.scene.itemAt(view_rect.center(), self.transform())): # Rough check? No.
-                        # Check intersection with view_rect
-                        if not item.sceneBoundingRect().intersects(view_rect):
+                    # Check if item is visible
+                    if item.sceneBoundingRect().intersects(view_rect):
+                        item.load_high_res()
+                    else:
+                        # Unload if not visible to save memory
+                        if item.is_high_res:
                             item.unload_high_res()
+                else:
+                    # Zoomed out: Unload everything to save memory
+                    if item.is_high_res:
+                        item.unload_high_res()
 
     # MARK: - Background Drawing
     # MARK: - 背景绘制
@@ -367,9 +350,6 @@ class OverviewCanvas(QGraphicsView):
             return
 
         if grid_size > 0:
-            # Optimize: Use drawLines instead of drawPoints for better performance
-            # Or even better, use a larger step if zoomed out
-            
             left = int(rect.left()) - (int(rect.left()) % grid_size)
             top = int(rect.top()) - (int(rect.top()) % grid_size)
             
@@ -497,10 +477,6 @@ class OverviewCanvas(QGraphicsView):
                 dx = target_x - cur_tl.x()
                 dy = target_y - cur_tl.y()
                 item.setPos(item.pos() + QPointF(dx, dy))
-        
-        # Ensure scene rect is large enough (infinite canvas feel)
-        # self.scene.setSceneRect(self.scene.itemsBoundingRect().adjusted(-1000, -1000, 1000, 1000))
-        pass # We use a fixed massive scene rect now
 
 
 # MARK: - Overview Page
