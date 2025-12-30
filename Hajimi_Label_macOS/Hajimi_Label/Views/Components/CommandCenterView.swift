@@ -9,6 +9,7 @@ import SwiftUI
 import AppKit
 
 // MARK: - Command Center View (Toolbar Item)
+// MARK: - 命令中心视图（工具栏项）
 
 struct CommandCenterView: View {
     @ObservedObject var appModel: AppModel
@@ -21,6 +22,7 @@ struct CommandCenterView: View {
                 .foregroundColor(Color(nsColor: .tertiaryLabelColor))
             
             // Always show TextField to avoid layout shifts
+            // 始终显示文本框以避免布局偏移
             TextField("Search files...", text: $localSearchText)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
@@ -34,6 +36,9 @@ struct CommandCenterView: View {
                     if !isOpen {
                         // Clear local text when closed externally (e.g. by selecting a file)
                         // But only if it was actually open before
+                        //
+                        // 当外部关闭时清除本地文本（例如通过选择文件）
+                        // 但仅当之前确实打开时
                         if !localSearchText.isEmpty {
                             localSearchText = ""
                         }
@@ -64,10 +69,12 @@ struct CommandCenterView: View {
         )
         .frame(width: 380, height: 32)
         // No overlay here! The dropdown is handled globally in ContentView.
+        // 此处无覆盖层！下拉菜单在 ContentView 中全局处理。
     }
 }
 
 // MARK: - Command Center Panel (Global Overlay)
+// MARK: - 命令中心面板（全局覆盖层）
 
 struct CommandCenterPanel: View {
     @ObservedObject var appModel: AppModel
@@ -78,14 +85,17 @@ struct CommandCenterPanel: View {
             return Array(appModel.allFiles.prefix(30))
         }
         // Fuzzy search logic
+        // 模糊搜索逻辑
         return appModel.allFiles.filter { url in
             let filename = url.lastPathComponent.lowercased()
             let query = appModel.searchText.lowercased()
             
             // 1. Exact match or substring match (priority)
+            // 1. 精确匹配或子串匹配（优先）
             if filename.contains(query) { return true }
             
             // 2. Fuzzy match (characters in order)
+            // 2. 模糊匹配（按顺序字符）
             var remainder = query[...]
             for char in filename {
                 if let first = remainder.first, char == first {
@@ -100,6 +110,7 @@ struct CommandCenterPanel: View {
     var body: some View {
         VStack(spacing: 0) {
             // Header / Status
+            // 头部 / 状态
             HStack {
                 if displayFiles.isEmpty {
                     Text("No matching files")
@@ -143,9 +154,11 @@ struct CommandCenterPanel: View {
         .frame(width: 380)
         .onAppear {
             // Reset selection
+            // 重置选择
             selectedIndex = 0
             
             // Global Key Monitor for navigation
+            // 用于导航的全局按键监视器
             NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
                 guard appModel.isCommandCenterOpen else { return event }
                 
