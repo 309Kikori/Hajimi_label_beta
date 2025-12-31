@@ -714,12 +714,18 @@ class MainWindow(QMainWindow):
     # MARK: - 命令面板
     def show_command_palette(self):
         """显示命令面板"""
-        # 定位到命令栏下方
-        command_pos = self.command_center.mapToGlobal(self.command_center.rect().bottomLeft())
+        # 定位到命令栏左上角，以便覆盖它
+        command_pos = self.command_center.mapToGlobal(self.command_center.rect().topLeft())
         
         # 创建命令面板
         palette = CommandPalette(self, self.files, self.recent_files)
-        palette.move(command_pos.x() - (palette.width() - self.command_center.width()) // 2, command_pos.y())
+        
+        # 计算位置：水平居中对齐 CommandCenter，垂直覆盖
+        # palette 宽度通常比 command_center 宽，所以向左偏移
+        x = command_pos.x() - (palette.width() - self.command_center.width()) // 2
+        y = command_pos.y()
+        
+        palette.move(x, y)
         palette.fileSelected.connect(self.load_file)
         palette.exec()
     

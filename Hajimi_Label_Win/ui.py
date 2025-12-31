@@ -508,7 +508,7 @@ class CommandPalette(QDialog):
         self.search_input.setPlaceholderText("Search files by name...")
         self.search_input.setStyleSheet("""
             QLineEdit {
-                background-color: #3c3c3c;
+                background-color: #2a2d2e;
                 color: #cccccc;
                 border: 1px solid #454545;
                 border-radius: 4px;
