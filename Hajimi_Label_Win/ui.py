@@ -532,7 +532,7 @@ class CommandPalette(QDialog):
                 outline: none;
             }
             QListWidget::item {
-                padding: 8px 10px;
+                padding: 4px 10px;
                 color: #cccccc;
             }
             QListWidget::item:selected {
